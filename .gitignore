@@ -1,0 +1,9 @@
+*.mp4
+*.png
+*.jpg
+logs
+__pycache__
+*.pkl
+ExpertDatasets
+.history
+
