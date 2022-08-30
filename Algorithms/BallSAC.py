@@ -66,6 +66,7 @@ class MASAC(object):
             embed_dim=embed_dim,
             t0=residual_t0,
         ).to(device)
+        self.target_score = target_score
         self.critic_target = copy.deepcopy(self.critic)
         self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=3e-4, betas=(0.9, 0.999))
 

@@ -464,6 +464,7 @@ if __name__ == "__main__":
         # Perform action
         next_state, _, done, infos = env.step(action, centralized=False)
         new_obs = env.render(obs_size)
+
         if is_state:
             reward, reward_similarity, reward_collision =  reward_func.get_reward(actions=action, info=infos, cur_state=state, new_state=next_state)
         else:
@@ -512,9 +513,13 @@ if __name__ == "__main__":
             # Evaluate episode, save model before eval
             if episode_num % args.eval_freq == 0:
                 print('------Now Save Models!------')
-                # with open(f"{exp_path}policy.pickle", 'wb') as f:
-                #     pickle.dump(policy, f)
-                policy.save(f"{last_ckpt_path}")
+                with open(f"{exp_path}policy.pickle", 'wb') as f:
+                    policy.writer = None
+                    pickle.dump(policy, f)
+                    policy.writer = writer
+                # policy.save(f"{last_ckpt_path}")
+    
+
                 print('------Now Start Eval!------')
                 file_name = f"{args.policy}_{args.env}_{args.seed}"
                 eval_num = args.eval_num
