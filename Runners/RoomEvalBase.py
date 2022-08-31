@@ -203,8 +203,8 @@ def merge_metrics_dicts(metrics_dicts, exp_name_):
 
 
 def eval_policy(eval_env, policy, eval_num, exp_name, exp_path, save_video, recover=True, is_random_init=True, 
-# seeds=[0, 5, 10, 15, 20],
-seeds=[0],
+seeds=[0, 5, 10, 15, 20],
+# seeds=[0],
 ):
     exists_or_mkdir(exp_path)
     metrics_path = os.path.join(exp_path, f'{len(seeds)}seeds_metrics_{eval_num}.pkl')

@@ -19,7 +19,6 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--exp_name", type=str, default="debug")  # Policy name (MATD3, DDPG or OurDDPG)
-    parser.add_argument("--seed", default=0, type=int)  # Sets Gym, PyTorch and Numpy seeds
     parser.add_argument("--is_single_room", type=str, default="True")  # Policy name (MATD3, DDPG or OurDDPG)
     parser.add_argument("--horizon", default=250, type=int)  # How often (time steps) we evaluate
     
@@ -43,7 +42,6 @@ if __name__ == "__main__":
     ''' init my env '''
     max_vel = get_max_vel()
     env = load_test_env(args.horizon, (args.is_single_room == 'True'))
-    set_seed(args.seed)
 
     ''' Init policy '''
     with open(f'{exp_path}/policy.pickle', 'rb') as f:

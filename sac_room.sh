@@ -60,24 +60,22 @@
 #####################################################################################################################################################################
 
 
-CUDA_VISIBLE_DEVICES=1 python Runners/RoomEvalSAC.py \
---exp_name Arrangement_SAC_multi_normr_col1_sim5_vel10_brown_10_100_flip_rotate_756rooms \
---eval_num 5 \
---seed 0 \
---save_video False \
---is_single_room False \
---score_exp M4D26_bedroom_target_128_64_dataM12D25 \
---hidden_dim 128 \
---embed_dim 64 \
---residual_t0 0.01 \
---horizon 250 \
---sigma 25.0 \
+# CUDA_VISIBLE_DEVICES=1 python Runners/RoomEvalSAC.py \
+# --exp_name Arrangement_SAC_multi_normr_col1_sim5_vel10_brown_10_100_flip_rotate_756rooms \
+# --eval_num 83 \
+# --save_video False \
+# --is_single_room False \
+# --score_exp M4D26_bedroom_target_128_64_dataM12D25 \
+# --hidden_dim 128 \
+# --embed_dim 64 \
+# --residual_t0 0.01 \
+# --horizon 250 \
+# --sigma 25.0 \
 
 
 # CUDA_VISIBLE_DEVICES=1 python Runners/RoomEvalSAC.py \
 # --exp_name Arrangement_SAC_multi_normr_col1_sim5_vel10_brown_10_100_flip_rotate \
 # --eval_num 83 \
-# --seed 0 \
 # --save_video False \
 # --is_single_room False \
 # --score_exp M4D26_bedroom_target_128_64_dataM12D25 \
