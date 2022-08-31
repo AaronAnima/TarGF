@@ -26,7 +26,9 @@ python replace.py # modify some files in igibson, and construct a softlink to da
 ```
 
 Then download the `3DFRONT` dataset preprocessed by us:
-** 2022/8/31 update: Due to the license issue, we temporarily canceled the sharing link below. If you need this dataset urgently, please email the authors. **
+
+
+**[2022/8/31 update] Due to the license issue, we temporarily canceled the sharing link below. If you need this dataset urgently, please email the authors.**
 
 ```
 cd data
