@@ -198,10 +198,8 @@ class PlanningAgent:
                 if np.sum(np.array(cur_vel)**2) < 1e-10 and self.one_by_one:
                     new_vels[i] = np.array([0, 0])
                     continue
-                # 意思就是刚好抹掉 i-th agent，考虑其他所有agent的碰撞
                 candidates = self.agents[:i] + self.agents[i + 1:]
 
-                # 再筛选一遍candidates，candidates就是k nearest
                 def my_comp(x, y):
                     x_dist = np.sum((x.position - agent.position) ** 2)
                     y_dist = np.sum((y.position - agent.position) ** 2)

@@ -29,7 +29,7 @@
 #---------- State-based ---------
 ################################
 
-# CUDA_VISIBLE_DEVICES=5 python Runners/BallSDE.py \
+# CUDA_VISIBLE_DEVICES=0 python Runners/BallSDE.py \
 # --exp_name Placing_SDE_1e5_1e4epoches_7balls \
 # --inp_mode state \
 # --env placing \
@@ -52,7 +52,7 @@
 #---------- State-based ---------
 ################################
 
-# CUDA_VISIBLE_DEVICES=6 python Runners/BallSDE.py \
+# CUDA_VISIBLE_DEVICES=0 python Runners/BallSDE.py \
 # --exp_name Hybrid_SDE_1e5_1e4epoches_7balls \
 # --inp_mode state \
 # --env hybrid \
@@ -66,3 +66,4 @@
 # --visualize_freq 10 \
 # --video_freq 100 \
 # --test_num 16 \
+

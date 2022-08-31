@@ -152,7 +152,6 @@ class Sorting:
         state: [3*n_balls_per_class, 2]
         """
         # verbose is to fit the api
-        # 注意之后要严格按照rgb顺序来！千万别弄反了！
         assert state.shape[0] == len(self.blue_balls + self.red_balls + self.green_balls) * 2
         for idx, boxId in enumerate(self.red_balls + self.green_balls + self.blue_balls):
             cur_state = state[idx * 2:(idx + 1) * 2]
@@ -173,11 +172,9 @@ class Sorting:
             positions.append(pos)
         positions = np.stack(positions)
 
-        # 所有物体都得在界内
         flag_x_bound = np.max(positions[:, 0:1]) <= (self.bound-self.r) and np.min(positions[:, 0:1]) >= (-self.bound+self.r)
         flag_y_bound = np.max(positions[:, 1:2]) <= (self.bound-self.r) and np.min(positions[:, 1:2]) >= (-self.bound+self.r)
 
-        # 得贴在平面上，重心得和半径一致
         flag_height = np.max(np.abs(positions[:, -1:] - self.r)) < 0.001
         return flag_height&flag_x_bound&flag_y_bound, (positions[:, -1:])
 
@@ -187,8 +184,6 @@ class Sorting:
         return: [3*n_balls_per_class*2]
         if norm, then normalize each 2-d position to [-1, 1]
         """
-        # 注意一定要严格按照rgb 顺序来！
-        # 至于category label，在训练那边临时搞个变量就好吧
         box_states = []
         for boxId in (self.red_balls+self.green_balls+self.blue_balls):
             pos, ori = p.getBasePositionAndOrientation(boxId, physicsClientId=self.cid)
@@ -332,7 +327,6 @@ class Sorting:
 class RLSorting(Sorting):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # 这里得用gym-env的spaces，而不是tf-agents的spaces
         self.max_action = kwargs['max_action']
         self.action_space = spaces.Box(-self.max_action, self.max_action, shape=(2*3*self.n_boxes_per_class, ), dtype=np.float32)
         self.observation_space = spaces.Box(-1, 1, shape=(2*3*self.n_boxes_per_class, ), dtype=np.float32)
@@ -386,15 +380,14 @@ class RLSorting(Sorting):
         # old_state = self.get_state()
         for _ in range(step_size):
             p.stepSimulation(physicsClientId=self.cid)
-            # 这步没必要了吧，比如碰撞了一下速度本来就应该变了
             # self.set_velocity(vels)
             collision_num += self.get_collision_num(centralized=centralized)
         # new_state = self.get_state()
-        collision_num /= step_size # 因为有可能碰撞持续了很久，你要是每个step都算就太多了，算个平均就好了
+        collision_num /= step_size 
 
         ''' M3D20 modify '''
         if not soft_collision:
-            collision_num = (collision_num > 0) # 就是这个step 有没有碰，不分大碰or小碰，这样collision num肯定没错
+            collision_num = (collision_num > 0) 
 
 
         r = 0
@@ -407,7 +400,6 @@ class RLSorting(Sorting):
         delta_pos = new_pos - old_pos
         vel_err = np.max(np.abs(delta_pos*self.time_freq*self.bound/step_size - vels))/self.max_action
         vel_err_mean = np.mean(np.abs(delta_pos*self.time_freq*self.bound/step_size - vels))/self.max_action
-        # 其实下面这个，如果发生严重碰撞，那也会产生大量warnings
         # if vel_err_mean > 0.1:
         #     print(f'Warning! Large mean-vel-err at cur step: {vel_err}!')
 
@@ -430,7 +422,6 @@ class RLSorting(Sorting):
         self.add_balls(green_positions, 'green')
         self.add_balls(blue_positions, 'blue')
 
-        # 巨坑！你要是不先simulate一下，它没法detect collision啊！
         p.stepSimulation(physicsClientId=self.cid)
         ''' step几下，弄掉重叠 '''
         if remove_collision:
@@ -446,7 +437,6 @@ class RLSorting(Sorting):
         self.cur_steps = 0
         # print(f'No.{self.num_ep   isodes} Episodes, reset now! time cost: {time.time() - t_s}')
         self.init_state = self.get_state()
-        # 改一改dynamics
         # self.change_dynamics()
         return self.init_state
 

@@ -65,7 +65,6 @@ class Placing:
             # reset cam-pose to a top-down view
             p.resetDebugVisualizerCamera(cameraDistance=0.6, cameraYaw=0., cameraPitch=-89., cameraTargetPosition=[0, 0, 0], physicsClientId=self.cid)
 
-        ''' Warning! 这里还没有load小球的urdf！必须要reset才会有urdf！ '''
 
     @staticmethod
     def seed(seed):
@@ -106,12 +105,10 @@ class Placing:
                 center = np.zeros((self.n_boxes, 2))
             r_max_ = self.bound - self.r - np.max(np.abs(center))
             if not dynamic_center:
-                # "固定"在中心，半径方差小
                 mu = (r_max_+r_min)/2
                 std = 0.01
                 r_sampled = np.random.normal(size=(self.n_boxes, )) * std + mu
             else:
-                # 半径在可行范围内随机
                 r_sampled = np.random.uniform(r_min, r_max_, size=(1, ))
                 r_sampled = np.repeat(r_sampled, self.n_boxes, axis=0)
             r_sampled = np.clip(r_sampled, r_min, r_max_)
@@ -120,13 +117,11 @@ class Placing:
             ''' sample theta '''
             thetas = np.array(range(self.n_boxes)) * (2*np.pi/self.n_boxes)
 
-            ''' 还需要打乱一下！不能带顺序！ '''
             if is_permutation:
                 permutation = np.random.permutation(self.n_boxes)
                 thetas = thetas[permutation]
                 r_sampled = r_sampled[permutation]
 
-            ''' 最后根据thetas radius算positions '''
             positions = np.concatenate([(r_sampled*np.cos(thetas)).reshape((-1, 1)),
                                         (r_sampled*np.sin(thetas)).reshape((-1, 1))], axis=-1)
             positions += center
@@ -141,7 +136,6 @@ class Placing:
         state: [3*n_balls_per_class, 2]
         """
         # verbose is to fit the api
-        # 注意之后要严格按照rgb顺序来！千万别弄反了！
         assert state.shape[0] == len(self.balls) * 2
         for idx, boxId in enumerate(self.balls):
             cur_state = state[idx * 2:(idx + 1) * 2]
@@ -162,11 +156,9 @@ class Placing:
             positions.append(pos)
         positions = np.stack(positions)
 
-        # 所有物体都得在界内
         flag_x_bound = np.max(positions[:, 0:1]) <= (self.bound-self.r) and np.min(positions[:, 0:1]) >= (-self.bound+self.r)
         flag_y_bound = np.max(positions[:, 1:2]) <= (self.bound-self.r) and np.min(positions[:, 1:2]) >= (-self.bound+self.r)
 
-        # 得贴在平面上，重心得和半径一致
         flag_height = np.max(np.abs(positions[:, -1:] - self.r)) < 0.001
         return flag_height&flag_x_bound&flag_y_bound, (positions[:, -1:])
 
@@ -176,8 +168,6 @@ class Placing:
         return: [3*n_balls_per_class*2]
         if norm, then normalize each 2-d position to [-1, 1]
         """
-        # 注意一定要严格按照rgb 顺序来！
-        # 至于category label，在训练那边临时搞个变量就好吧
         box_states = []
         for boxId in self.balls:
             pos, ori = p.getBasePositionAndOrientation(boxId, physicsClientId=self.cid)
@@ -288,7 +278,6 @@ class Placing:
 class RLPlacing(Placing):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # 这里得用gym-env的spaces，而不是tf-agents的spaces
         self.max_action = kwargs['max_action']
         self.action_space = spaces.Box(-self.max_action, self.max_action, shape=(2*3*self.n_boxes_per_class, ), dtype=np.float32)
         self.observation_space = spaces.Box(-1, 1, shape=(2*3*self.n_boxes_per_class, ), dtype=np.float32)
@@ -338,15 +327,14 @@ class RLPlacing(Placing):
         # old_state = self.get_state()
         for _ in range(step_size):
             p.stepSimulation(physicsClientId=self.cid)
-            # 这步没必要了吧，比如碰撞了一下速度本来就应该变了
             # self.set_velocity(vels)
             collision_num += self.get_collision_num(centralized=centralized)
         # new_state = self.get_state()
-        collision_num /= step_size # 因为有可能碰撞持续了很久，你要是每个step都算就太多了，算个平均就好了
+        collision_num /= step_size 
 
         ''' M3D20 modify '''
         if not soft_collision:
-            collision_num = (collision_num > 0) # 就是这个step 有没有碰，不分大碰or小碰，这样collision num肯定没错
+            collision_num = (collision_num > 0)
 
 
         r = 0
@@ -359,7 +347,6 @@ class RLPlacing(Placing):
         delta_pos = new_pos - old_pos
         vel_err = np.max(np.abs(delta_pos*self.time_freq*self.bound/step_size - vels))/self.max_action
         vel_err_mean = np.mean(np.abs(delta_pos*self.time_freq*self.bound/step_size - vels))/self.max_action
-        # 其实下面这个，如果发生严重碰撞，那也会产生大量warnings
         # if vel_err_mean > 0.1:
         #     print(f'Warning! Large mean-vel-err at cur step: {vel_err}!')
 
@@ -375,7 +362,6 @@ class RLPlacing(Placing):
         
         self.add_balls(positions)
 
-        # 巨坑！你要是不先simulate一下，它没法detect collision啊！
         p.stepSimulation(physicsClientId=self.cid)
         total_steps = 0
         while self.get_collision_num() > 0:

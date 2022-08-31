@@ -165,7 +165,6 @@ class Hybrid:
         state: [3*n_balls_per_class, 2]
         """
         # verbose is to fit the api
-        # 注意之后要严格按照rgb顺序来！千万别弄反了！
         assert state.shape[0] == len(self.blue_balls + self.red_balls + self.green_balls) * 2
         for idx, boxId in enumerate(self.red_balls + self.green_balls + self.blue_balls):
             cur_state = state[idx * 2:(idx + 1) * 2]
@@ -186,11 +185,9 @@ class Hybrid:
             positions.append(pos)
         positions = np.stack(positions)
 
-        # 所有物体都得在界内
         flag_x_bound = np.max(positions[:, 0:1]) <= (self.bound-self.r) and np.min(positions[:, 0:1]) >= (-self.bound+self.r)
         flag_y_bound = np.max(positions[:, 1:2]) <= (self.bound-self.r) and np.min(positions[:, 1:2]) >= (-self.bound+self.r)
 
-        # 得贴在平面上，重心得和半径一致
         flag_height = np.max(np.abs(positions[:, -1:] - self.r)) < 0.001
         return flag_height&flag_x_bound&flag_y_bound, (positions[:, -1:])
 
@@ -200,8 +197,6 @@ class Hybrid:
         return: [3*n_balls_per_class*2]
         if norm, then normalize each 2-d position to [-1, 1]
         """
-        # 注意一定要严格按照rgb 顺序来！
-        # 至于category label，在训练那边临时搞个变量就好吧
         box_states = []
         for boxId in (self.red_balls+self.green_balls+self.blue_balls):
             pos, ori = p.getBasePositionAndOrientation(boxId, physicsClientId=self.cid)
@@ -311,7 +306,6 @@ class Hybrid:
 class RLHybrid(Hybrid):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # 这里得用gym-env的spaces，而不是tf-agents的spaces
         self.max_action = kwargs['max_action']
         self.action_space = spaces.Box(-self.max_action, self.max_action, shape=(2*3*self.n_boxes_per_class, ), dtype=np.float32)
         self.observation_space = spaces.Box(-1, 1, shape=(2*3*self.n_boxes_per_class, ), dtype=np.float32)
@@ -407,7 +401,6 @@ class RLHybrid(Hybrid):
         delta_pos = new_pos - old_pos
         vel_err = np.max(np.abs(delta_pos*self.time_freq*self.bound/step_size - vels))/self.max_action
         vel_err_mean = np.mean(np.abs(delta_pos*self.time_freq*self.bound/step_size - vels))/self.max_action
-        # 其实下面这个，如果发生严重碰撞，那也会产生大量warnings
         # if vel_err_mean > 0.1:
         #     print(f'Warning! Large mean-vel-err at cur step: {vel_err}!')
 
@@ -430,7 +423,6 @@ class RLHybrid(Hybrid):
         self.add_balls(positions[self.n_boxes_per_class:2*self.n_boxes_per_class], 'green')
         self.add_balls(positions[2*self.n_boxes_per_class:3*self.n_boxes_per_class], 'blue')
 
-        # 巨坑！你要是不先simulate一下，它没法detect collision啊！
         p.stepSimulation(physicsClientId=self.cid)
         total_steps = 0
         while self.get_collision_num() > 0:

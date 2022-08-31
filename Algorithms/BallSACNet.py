@@ -141,11 +141,9 @@ class ActorTanh(nn.Module):
         # mu = mu.contiguous().view(-1, 2*self.num_boxes)
         mu = self.max_action * torch.tanh(mu.contiguous().view(-1, 2*self.num_boxes))
         # mu = mu[samples_batch]
-        # 叠上tar_scores propose出来的action
         if self.is_residual:
             mu += self.max_action * torch.tanh(tar_scores.view(bs, -1))
         # mu = self.max_action * (torch.tanh(tar_scores.view(bs, -1)) + torch.tanh(mu))
-        # normalize 一下
         # out_action *= torch.min(torch.tensor([1, self.max_action/(torch.max(torch.abs(out_action)) + 1e-7)]).to(device))
         dist = SquashedNormal(mu, std) # dist.sample().shape == torch.Size([1, 30])
         # set_trace()
@@ -236,7 +234,7 @@ class CriticTanh(nn.Module):
         # convert normal batch to graph
         k = self.knn
         bs = state_inp.shape[0]
-        state_inp = state_inp.view(-1, 4) # !!!这里是state和action concat了！
+        state_inp = state_inp.view(-1, 4) 
         samples_batch = torch.tensor([i for i in range(bs) for _ in range(self.num_boxes)], dtype=torch.int64).to(device)
         x, edge_index = state_inp, knn_graph(state_inp, k=k, batch=samples_batch)
 
@@ -326,7 +324,7 @@ class ActorOld(nn.Module):
                 edge_index = knn_graph(state_inp.view(-1, 2), k=self.knn, batch=samples_batch)
                 t = torch.tensor([self.t0]*bs).unsqueeze(1).to(device)
                 inp_data = Data(x=state_inp.view(-1, 2), edge_index=edge_index)
-                out_score = self.score_target(inp_data, t, self.num_boxes//3) # 坑！这里传进去的是每类的数量！
+                out_score = self.score_target(inp_data, t, self.num_boxes//3)
         else:
             out_score = torch.zeros_like(state_inp).to(device).view(-1, 2)
         return out_score
@@ -366,11 +364,9 @@ class ActorOld(nn.Module):
         # [bs*30, 2] -> [bs, 60]
         mu = mu.contiguous().view(-1, 2*self.num_boxes)
         # mu = mu[samples_batch]
-        # 叠上tar_scores propose出来的action
         if self.is_residual:
             mu += self.max_action * torch.tanh(tar_scores.view(bs, -1))
         # mu = self.max_action * (torch.tanh(tar_scores.view(bs, -1)) + torch.tanh(mu))
-        # normalize 一下
         # out_action *= torch.min(torch.tensor([1, self.max_action/(torch.max(torch.abs(out_action)) + 1e-7)]).to(device))
         dist = SquashedNormal(mu, std) # dist.sample().shape == torch.Size([1, 30])
         # set_trace()
@@ -427,7 +423,7 @@ class CriticOld(nn.Module):
                 edge_index = knn_graph(state_inp.view(-1, 2), k=self.knn, batch=samples_batch)
                 t = torch.tensor([self.t0]*bs).unsqueeze(1).to(device)
                 inp_data = Data(x=state_inp.view(-1, 2), edge_index=edge_index)
-                out_score = self.score_target(inp_data, t, self.num_boxes//3) # 坑！这里传进去的是每类的数量！
+                out_score = self.score_target(inp_data, t, self.num_boxes//3) 
         else:
             out_score = torch.zeros_like(state_inp).to(device).view(-1, 2)
         return out_score
@@ -444,7 +440,7 @@ class CriticOld(nn.Module):
         # convert normal batch to graph
         k = self.knn
         bs = state_inp.shape[0]
-        state_inp = state_inp.view(-1, 4) # !!!这里是state和action concat了！
+        state_inp = state_inp.view(-1, 4) 
         samples_batch = torch.tensor([i for i in range(bs) for _ in range(self.num_boxes)], dtype=torch.int64).to(device)
         x, edge_index = state_inp, knn_graph(state_inp, k=k, batch=samples_batch)
 

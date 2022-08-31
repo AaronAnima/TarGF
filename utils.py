@@ -176,8 +176,7 @@ def pdf(state, num_boxes, is_normed=True):
     return res
 
 def pdf_sorting(state, num_boxes, is_normed=True):
-    # bases = np.array(list(range(3))) * (2 * np.pi) / 3 # 红球转三次的版本
-    bases = np.array(list(range(1))) * (2 * np.pi) / 3 # mmd 这个版本红球其实没转
+    bases = np.array(list(range(1))) * (2 * np.pi) / 3 
     coins = [0, 1]
     delta = [-2*np.pi/3, 2*np.pi/3]
     radius = 0.18
@@ -255,7 +254,6 @@ def pdf_circlerect(state, num_boxes=5, is_normed=True):
 
 def pdf_placing(state, num_boxes=5, is_normed=True):
     positions = state.reshape(-1, 2)
-    # 坑！！！！一定要先中心化positions！！！！
     positions_centered = positions - np.mean(positions, axis=0)
     positions_centered /= np.max(np.abs(positions_centered))
     radiuses = np.sqrt(np.sum(positions_centered**2, axis=-1))
@@ -265,11 +263,8 @@ def pdf_placing(state, num_boxes=5, is_normed=True):
     theta_std = get_delta_thetas_std(thetas)
     return np.exp(-(theta_std+radius_std))
 
-''' 用theta std度量类内距离, 注意用角度肯定更好，因为position会和半径相关 '''
 def pdf_hybrid(state, num_boxes=5, is_normed=True):
-    ''' 先得像个圆 '''
     positions = state.reshape(-1, 2)
-    # 坑！！！！一定要先中心化positions！！！！
     positions_centered = positions - np.mean(positions, axis=0) # [num_balls, 2]
     positions_centered /= np.max(np.abs(positions_centered))
     n_per_class = positions.shape[0]//3
@@ -278,12 +273,10 @@ def pdf_hybrid(state, num_boxes=5, is_normed=True):
     thetas = np.arctan2(positions_centered[:, 1], positions_centered[:, 0]) # theta = atan2(y, x)
     theta_std = get_delta_thetas_std(thetas)
 
-    ''' 还得分成三类 '''
     theta_std_r = get_thetas_std(thetas[0:n_per_class])
     theta_std_g = get_thetas_std(thetas[n_per_class:2*n_per_class])
     theta_std_b = get_thetas_std(thetas[2*n_per_class:3*n_per_class])
 
-    ''' 最后三类中心还得分得更开 '''
     center_r = np.mean(positions_centered[0:n_per_class], axis=0)
     center_g = np.mean(positions_centered[n_per_class:2*n_per_class], axis=0)
     center_b = np.mean(positions_centered[2*n_per_class:3*n_per_class], axis=0)
@@ -306,14 +299,13 @@ def chamfer_dist(x, y, metric='l1'):
 
 def coverage_score(gt_states, states, who_cover='gen', is_category=True):
     min_dists = []
-    # 没错！就是给每个GT都要找一个match的！
-    # 试了下，发现GT_num == Gen_num//2 最好
+    # GT_num == Gen_num//2 
     # 200: 1.688
     # 20: 1.868
     # 50: 1.685
     # 100: 1.645
     # orca_knn1_score_network_001_eval_100_gtnum10_placing
-    # who_cover == 'gt': 每个生成，找最近的GT， who_cover == ‘gen’: 每个gt，找最近的生成
+    # who_cover == 'gt': each gen find nearest gt， who_cover == ‘gen’: vice versa
     cover_states = gt_states if who_cover == 'gt' else states
     covered_states = states if who_cover == 'gt' else gt_states
     for covered_state in covered_states:

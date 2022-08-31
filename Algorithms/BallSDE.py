@@ -135,49 +135,9 @@ class ScoreModelGNN(nn.Module):
         x = self.conv3(x, edge_index)
 
         # normalize the output
-        # 注意当t=0时，marginal_prob_std = 0，其实意思就是梯度无穷大
         x = x / (self.marginal_prob_std(t.repeat(1, 3*self.n_box).view(bs*3*self.n_box, -1))+1e-7)
         return x
 
-
-# fc version for overfitting
-# class ScoreModelGNN(nn.Module):
-#     def __init__(self, marginal_prob_std_func, n_box, mode, device, hidden_dim=64, embed_dim=32):
-#         super(ScoreModelGNN, self).__init__()
-#         self.mode = mode        
-#         self.device = device
-#         self.n_box = n_box
-
-#         # t-feature
-#         self.embed = nn.Sequential(
-#             GaussianFourierProjection(embed_dim=embed_dim),
-#             nn.ReLU(True),
-#             nn.Linear(embed_dim, embed_dim),
-#         )
-
-#         self.backbone = nn.Sequential(
-#             nn.Linear(2*self.n_box*3, hidden_dim),
-#             nn.ReLU(True),
-#             nn.Linear(hidden_dim, hidden_dim),
-#             nn.ReLU(True),
-#         )
-#         self.out_tail = nn.Linear(hidden_dim+embed_dim, 2*self.n_box*3)
-        
-#         self.marginal_prob_std = marginal_prob_std_func
-
-#     def forward(self, state_inp, t, n_box):
-#         self.n_box = n_box
-#         # t.shape == [bs, 1]
-#         x, edge_index, batch = state_inp.x, state_inp.edge_index, state_inp.batch
-#         x_sigma = F.relu(self.embed(t.squeeze(1)))
-#         x = self.backbone(x.view(-1, 2*self.n_box*3))
-#         x = torch.cat([x, x_sigma], dim=-1)
-#         x = self.out_tail(x)
-#         x = x.view(-1, 2)
-#         bs = t.shape[0]
-
-#         x = x / (self.marginal_prob_std(t.repeat(1, 3*self.n_box).view(bs*3*self.n_box, -1))+1e-7)
-#         return x
 
 
 class ScoreNet(nn.Module):

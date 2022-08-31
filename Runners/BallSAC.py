@@ -63,7 +63,6 @@ class TargetScore:
     def get_score(self, state_inp, t0, is_numpy=True, is_norm=True, empty=False):
         if not empty:
             if self.is_state:
-                # 不管是numpy，或者tensor，都可以 -> tensor-device
                 if not torch.is_tensor(state_inp):
                     state_inp = torch.tensor(state_inp)
                 state_inp = state_inp.view(-1, self.num_objs * 3, 2).to(device)
@@ -72,7 +71,7 @@ class TargetScore:
                 edge_index = knn_graph(state_inp.view(-1, 2), k=self.num_objs*3-1, batch=samples_batch)
                 t = torch.tensor([t0]*bs).unsqueeze(1).to(device)
                 inp_data = Data(x=state_inp.view(-1, 2), edge_index=edge_index)
-                out_score = self.score(inp_data, t, self.num_objs) # 这里传每类就好了
+                out_score = self.score(inp_data, t, self.num_objs) 
                 out_score = out_score.detach()
                 if is_norm:
                     out_score = out_score * torch.min(
@@ -222,7 +221,7 @@ class RewardSampler:
             cur_score = self.target_score.get_score(cur_state, t0=self.t0, is_norm=False).reshape(-1)
             delta_state = new_state - cur_state
             similarity_reward = np.sum(delta_state * cur_score)
-            similarity_reward *= 1 - info['progress'] # 所以越晚越拿不到sim reward
+            similarity_reward *= 1 - info['progress'] 
             similarity_reward *= (info['cur_steps'] % self.reward_freq == 0)
         else:
             print('Unknown Reward Type!!')
@@ -582,7 +581,6 @@ class GTTargetScore(nn.Module):
         bs = data.shape[0]
         z = (data - center.repeat(bs, 1))/self.scale
         densities = torch.exp(-z**2/2)/torch.sqrt(torch.tensor(2*np.pi, device=device))
-        # 一定要先log 再加，不能先加再log！！ 精度限制！！
         # log_densities = torch.log(densities)
         return torch.prod(densities, dim=-1)
 

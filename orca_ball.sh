@@ -6,20 +6,20 @@
 #---------- ORCA-Score ---------
 ################################
 
-CUDA_VISIBLE_DEVICES=1 python Runners/BallORCA.py \
---exp_name Sorting_ORCA_score_knn2_01decay_7balls \
---is_decay True \
---recover False \
---num_objs 7 \
---knn_orca 2 \
---horizon 100 \
---mode eval \
---eval_num 100 \
---env sorting \
---score_exp SDE_sorting_1e5_1e4epoches_7balls \
---orca_mode score \
---target_t0 0.1 \
---seed 0 \
+# CUDA_VISIBLE_DEVICES=1 python Runners/BallORCA.py \
+# --exp_name Sorting_ORCA_score_knn2_01decay_7balls \
+# --is_decay True \
+# --recover False \
+# --num_objs 7 \
+# --knn_orca 2 \
+# --horizon 100 \
+# --mode debug \
+# --eval_num 100 \
+# --env sorting \
+# --score_exp SDE_sorting_1e5_1e4epoches_7balls \
+# --orca_mode score \
+# --target_t0 0.1 \
+# --seed 0 \
 
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -39,7 +39,7 @@ CUDA_VISIBLE_DEVICES=1 python Runners/BallORCA.py \
 # --mode eval \
 # --num_objs 7 \
 # --env placing \
-# --score_exp placing \
+# --score_exp Placing_SDE_1e5_1e4epoches_7balls \
 # --orca_mode score \
 # --knn_orca 2 \
 # --target_t0 0.1 \
@@ -62,7 +62,7 @@ CUDA_VISIBLE_DEVICES=1 python Runners/BallORCA.py \
 # --horizon 100 \
 # --num_objs 7 \
 # --mode eval \
-# --score_exp hybrid \
+# --score_exp Hybrid_SDE_1e5_1e4epoches_7balls \
 # --env hybrid \
 # --orca_mode score \
 # --knn_orca 2 \
