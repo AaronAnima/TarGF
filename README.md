@@ -1,5 +1,7 @@
 # TarGF
-Official Implementation of Learning Gradient Fields for Object Rearrangement
+Official Implementation of Learning Gradient Fields for Object Rearrangement.
+
+[[Website](https://sites.google.com/view/targf/)] [[Arxiv](https://arxiv.org/abs/2209.00853)]
 
 ## Installation
 For `Ubuntu >= 18.04` and `Anaconda3`, you can successfully run ball rearrangement tasks following the instructions below:
@@ -16,26 +18,26 @@ pip install opencv-python tensorboard pytorch_fid gym pybullet ipdb imageio
 
 To further run our room rearrangement tasks, you need to further install `igibson`, download the preprocessed version of `3DFRONT` and meta-data used in our experiments following the instructions below:
 
-First download the `3DFRONT` into `$YOUR_DOWNLOAD_PATH` (Preferably outside of `./TarGF`), then:
-
-```
-cd Targf
-pip install igibson==1.0.3
-python replace.py # modify some files in igibson, and construct a softlink to data folder
-
-```
-
-Then download the `3DFRONT` dataset preprocessed by us:
-
+First download the `3DFRONT` dataset preprocessed by us:
 
 **[2022/8/31 update] Due to the license issue, we temporarily canceled the sharing link below. If you need this dataset urgently, please email the authors.**
 
 ```
-cd data
-wget https://www.dropbox.com/s/f1kha4922t8xfqr/threedfront_dataset.zip
-unzip threedfront_dataset.zip
-rm -rf threedfront_dataset.zip
+cd Targf
+wget https://www.dropbox.com/s/7j8f3dvn976hmaf/data.zip
+unzip data.zip
+rm -rf data.zip
 ```
+
+Then setup softlink to `igibson` package and modify some modules of `igibson`:
+
+```
+cd Targf
+pip install igibson==1.0.3
+python setup.py # modify some files in igibson, and construct a softlink to data folder
+
+```
+
 
 Besides, you need to download the meta-data of our cleaned data:
 

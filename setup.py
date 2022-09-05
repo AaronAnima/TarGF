@@ -11,6 +11,6 @@ copy('./Misc/articulated_object.py', f'{ig_path}/objects/')
 copy('./Misc/assets_utils.py', f'{ig_path}/utils/')
 
 # create soft link
-src = './data'
+src = os.path.join(os.getcwd(), './data')
 dst = f'{igibson.root_path}/data'
 os.symlink(src, dst)
