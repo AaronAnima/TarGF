@@ -76,15 +76,11 @@ def eval_trajs(env_type, trajs, num_objs, eval_env, exp_name_, render_size=256,
                is_img=True,
                old_metrics=None,
     ):
-    # metrics: delta_likelihood, average_collision, diversity_score, coverage, likelihood_curve
     likelihood_estimator = GTTargetScore(num_objs, env_type=env_type)
     delta_likelihood = None
     average_collision = None
     diversity_score_ = None
     coverage = None
-    # fid = None
-    # act = None
-    # imgs = None
     likelihood_curve = None
 
     if is_delta_likelihood:
@@ -105,12 +101,7 @@ def eval_trajs(env_type, trajs, num_objs, eval_env, exp_name_, render_size=256,
         print(f'----- seed {seed}: diversity_score: {diversity_score_:.3f}-----')
 
     if is_coverage:
-        # gt_num = len(trajs)//2
-        # gt_num = len(trajs)*1
-        # gt_num = len(trajs)//10
-        # gt_num = len(trajs)//5 # for placing and hybrid? or for all? 
         gt_num = len(trajs)//2 if env_type == 'sorting' else len(trajs)//5
-        # gt_num = 20
         eval_env.seed(seed+10)
         # get a batch of GF-states
         gt_states = []
@@ -133,38 +124,6 @@ def eval_trajs(env_type, trajs, num_objs, eval_env, exp_name_, render_size=256,
         average_collision_mu, average_collision_std = np.mean(collisions), np.std(collisions)
         print(f'----- seed {seed}: average_collision: {average_collision_mu:.3f} +- {average_collision_std:.3f}-----')
         average_collision = {'mu': average_collision_mu, 'std': average_collision_std}
-
-    
-    
-    # # Inception dims: 64, 192, 768, 2048
-    # # set_dims = 192
-    # set_dims = 2048
-    # render_size = 256
-    # if is_img or is_fid or is_act:
-    #     end_imgs = []
-    #     for traj in trajs:
-    #         eval_env.set_state(traj[-1]['state'])
-    #         end_imgs.append(cv2.cvtColor(eval_env.render(render_size), cv2.COLOR_BGR2RGB))
-    #     imgs = end_imgs
-
-    # if is_fid or is_act:
-    #     # gt_num = len(trajs)//2
-    #     gt_num = len(trajs)*1
-    #     # gt_num = len(trajs)//10
-    #     # gt_num = len(trajs)*2
-    #     eval_env.seed(0)
-    #     gt_imgs = []
-    #     for _ in range(gt_num):
-    #         eval_env.reset(is_random=False)
-    #         gt_imgs.append(cv2.cvtColor(eval_env.render(render_size), cv2.COLOR_BGR2RGB))
-    #     gt_act = get_act(gt_imgs, dims=set_dims)
-
-    #     end_act = get_act(end_imgs, dims=set_dims)
-    #     act = end_act
-
-    #     if is_fid:
-    #         fid = calc_fid_from_act(gt_act, end_act)
-    #         print(f'-----fid_score: {fid:.3f}-----')
 
     if is_likelihood_curve:
         trajs_likelihoods = []
@@ -203,9 +162,6 @@ def eval_trajs(env_type, trajs, num_objs, eval_env, exp_name_, render_size=256,
         'coverage_gen_cover_std': coverage_gen_cover_std,
         'coverage_gt_cover': coverage_gt_cover_mu,
         'coverage_gt_cover_std': coverage_gt_cover_std,
-        # 'fid': fid,
-        # 'act': act,
-        # 'imgs': imgs,
         'likelihood_curve': likelihood_curve,
         'ASC_mu': ASC_mu,
         'ASC_std': ASC_std,
@@ -274,8 +230,6 @@ def merge_metrics_dicts(metrics_dicts):
 def full_metric(env, env_type, exp_path, policy, n_balls, exp_name, eval_num, recover=False, seeds=[0, 5]):
     ''' If there exists trajs, then skip '''
     trajs = None
-    # trajs_path = exp_path+f'{len(seeds)}seeds_trajs_{n_balls}_{eval_num}.pickle'
-    # metrics_path = exp_path+f'{len(seeds)}seeds_metrics_{n_balls}_{eval_num}.pickle'
     trajs_path = exp_path+f'{len(seeds)}seeds_trajs_{n_balls}_{eval_num}_{env.max_episode_len}.pickle'
     metrics_path = exp_path+f'{len(seeds)}seeds_metrics_{n_balls}_{eval_num}_{env.max_episode_len}.pickle'
     if os.path.exists(trajs_path) and recover:
@@ -349,94 +303,17 @@ def analysis(eval_env, pdf, policy, n_box, score, t0, save_path=None, eval_episo
             state_ = state.reshape(3 * n_box, -1)[:, 0:2]
             new_state_ = new_state.reshape(3 * n_box, -1)[:, 0:2]
             curve_gt.append(np.log(pdf(state_, n_box)))
-            # if is_score_curve:
-            #     if is_state:
-            #         cur_tar_vels = score.get_score(state_, t0=t0, is_norm=False)
-            #         curve_estimated.append(curve_estimated[-1]+np.sum(cur_tar_vels*(new_state_-state_)))
-            #     else:
-            #         cur_obs = 2*cur_obs/255. - 1
-            #         new_obs = 2*new_obs/255. - 1
-            #         cur_obs = np.transpose(cur_obs, (2, 0, 1)) # [c, h, w]
-            #         new_obs = np.transpose(new_obs, (2, 0, 1))
-            #         cur_score = score.get_score(cur_obs, t0=t0, is_norm=False).reshape(-1)
-            #         delta_obs = (new_obs - cur_obs).reshape(-1)
-            #         delta_likelihood = np.sum(delta_obs * cur_score)
-            #         curve_estimated.append(curve_estimated[-1]+delta_likelihood)
 
             state = new_state
             cur_obs = new_obs
             if time_step % save_freq == 0:
                 video_states.append(state_.reshape(-1))
-        # curves_gt.append(curve_gt)
-        # curves_ours.append(curve_estimated)
-        # plot GT curve
-        # plt.clf()
-        # plt.plot(np.array(curve_gt), label='GT')
-        # if is_score_curve:
-        #     plt.plot(np.array(curve_estimated), label='Estimated')
-        # plt.legend(loc=4)
-        # plt.show()
-        # plt.savefig(f'{save_path}curves_{idx}.png')
 
         # save video
         video_duration = 5
         video_states_np = np.stack(video_states)
         # save_video(eval_env, video_states_np, save_path=f'{save_path}video_{idx}', fps=len(video_states_np) // video_duration, suffix='mp4')
         save_video(eval_env, video_states_np, save_path=f'{save_path}video_{idx}', fps=len(video_states_np) // video_duration, suffix='gif') # save as gifs
-    
-    # # trajs_path = exp_path+f'trajs_{n_balls}_{eval_num}.pickle'
-    # # if os.path.exists(trajs_path):
-    # #     print('----- Find Existing Trajs!! -----')
-    # #     with open(trajs_path, 'rb') as f:
-    # #         trajs = pickle.load(f)
-    
-    # # for traj in trajs:
-    # #     curve_estimated = []
-    # #     curve_gt = []
-    # #     for idx, info in enumerate(traj):
-    # #         state_ = info['state'] 
-    # #         curve_gt.append(np.log(pdf(state_, n_box)))
-    # #         new_state_ = new_state.reshape(3 * n_box, -1)[:, 0:2]
-    # #         cur_tar_vels = score.get_score(state_, t0=t0, is_norm=False)
-    # #         curve_estimated.append(curve_estimated[-1]+np.sum(cur_tar_vels*(new_state_-state_)))
-
-    
-    # curves_gt = np.stack(curves_gt)
-
-    # # base = np.min(curves_gt)
-    # # scale = np.max(curves_gt) - np.min(curves_gt)
-    # # curves_gt -= base
-    # # curves_gt /= scale
-
-    # curves_ours = np.stack(curves_ours)
-    
-    # # base = np.min(curves_estimated)
-    # # scale = np.max(curves_estimated) - np.min(curves_estimated)
-    # # curves_estimated -= base
-    # # curves_estimated /= scale
-
-    # curves_gt_mu = np.mean(curves_gt, axis=0)
-    # curves_gt_std = np.std(curves_gt, axis=0)
-    # curves_estimated_mu = np.mean(curves_ours, axis=0)
-    # curves_estimated_std = np.std(curves_ours, axis=0)
-    # comparative_curve = {
-    #     'gt_mu': curves_gt_mu,
-    #     'gt_std': curves_gt_std,
-    #     'estimated_mu': curves_estimated_mu,
-    #     'estimated_std': curves_estimated_std,
-    # }
-    # suffix = 'bad' if test_bad_policy else ''
-    # with open(f'{save_path}comparative_likelihood_curve_{suffix}.pickle', 'wb') as f:
-    #     pickle.dump(comparative_curve, f)
-
-    # plt.plot(curves_gt_mu, label='gt_likelihood')
-    # plt.fill_between(np.array(range(curves_gt_mu.shape[0])), curves_gt_mu+curves_gt_std, curves_gt_mu-curves_gt_std, alpha=0.1)
-    # plt.plot(curves_estimated_mu, label='estimated_likelihood')
-    # plt.fill_between(np.array(range(curves_estimated_mu.shape[0])), curves_estimated_mu+curves_estimated_std, curves_estimated_mu-curves_estimated_std, alpha=0.1)
-    # plt.legend(loc=4)
-    # plt.show()
-    # plt.savefig(f'{save_path}comparative_likelihood_curve_{suffix}.png')
-
 
 
 def take_video(eval_env, policy, eval_episodes=4):
@@ -445,7 +322,6 @@ def take_video(eval_env, policy, eval_episodes=4):
         state, done = eval_env.reset(is_random=True), False
         video_states = []
         while not done:
-            # 就算是goal_env，cur_state 也在前面半截
             video_states.append(state[:, 0:2].reshape(-1))
             action = policy.select_action(np.array(state), sample=False)
             next_state, _, done, infos = eval_env.step(action, centralized=False)
@@ -456,11 +332,11 @@ def take_video(eval_env, policy, eval_episodes=4):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--exp_names", nargs='+')  # Policy name (MATD3, DDPG or OurDDPG)
-    parser.add_argument("--labels", nargs='+')  # Policy name (MATD3, DDPG or OurDDPG)
-    parser.add_argument("--curve_name", type=str, default="")  # Policy name (MATD3, DDPG or OurDDPG)
-    parser.add_argument("--eval_num", type=int, default=100)  # Policy name (MATD3, DDPG or OurDDPG)
-    parser.add_argument("--alpha", type=float, default=0.3)  # Policy name (MATD3, DDPG or OurDDPG)
+    parser.add_argument("--exp_names", nargs='+')
+    parser.add_argument("--labels", nargs='+')
+    parser.add_argument("--curve_name", type=str, default="") 
+    parser.add_argument("--eval_num", type=int, default=100) 
+    parser.add_argument("--alpha", type=float, default=0.3)
     args = parser.parse_args()
 
     exp_names = args.exp_names

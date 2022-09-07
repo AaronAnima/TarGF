@@ -299,11 +299,6 @@ def chamfer_dist(x, y, metric='l1'):
 
 def coverage_score(gt_states, states, who_cover='gen', is_category=True):
     min_dists = []
-    # GT_num == Gen_num//2 
-    # 200: 1.688
-    # 20: 1.868
-    # 50: 1.685
-    # 100: 1.645
     # orca_knn1_score_network_001_eval_100_gtnum10_placing
     # who_cover == 'gt': each gen find nearest gt， who_cover == ‘gen’: vice versa
     cover_states = gt_states if who_cover == 'gt' else states

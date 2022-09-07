@@ -21,17 +21,17 @@ PDF_DICT = {'sorting': pdf_sorting, 'placing': pdf_placing, 'hybrid': pdf_hybrid
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--exp_name", type=str, default="debug")  # Policy name (MATD3, DDPG or OurDDPG)
-parser.add_argument("--env", type=str, default="sorting")  # Policy name (MATD3, DDPG or OurDDPG)
-parser.add_argument("--action_type", type=str, default="vel")  # Policy name (MATD3, DDPG or OurDDPG)
-parser.add_argument("--is_onebyone", type=str, default="False")  # Policy name (MATD3, DDPG or OurDDPG)
-parser.add_argument("--n_boxes", default=10, type=int)  # How often (time steps) we evaluate
-parser.add_argument("--seed", default=0, type=int)  # Sets Gym, PyTorch and Numpy seeds
+parser.add_argument("--exp_name", type=str, default="debug")  
+parser.add_argument("--env", type=str, default="sorting")  
+parser.add_argument("--action_type", type=str, default="vel")  
+parser.add_argument("--is_onebyone", type=str, default="False")  
+parser.add_argument("--n_boxes", default=10, type=int)  
+parser.add_argument("--seed", default=0, type=int)  
 
-parser.add_argument("--eval_mode", type=str, default="analysis")  # Policy name (MATD3, DDPG or OurDDPG)
-parser.add_argument("--eval_num", type=int, default=40)  # Policy name (MATD3, DDPG or OurDDPG)
-parser.add_argument("--horizon", default=250, type=int)  # How often (time steps) we evaluate
-parser.add_argument("--recover", type=str, default="False")  # Policy name (MATD3, DDPG or OurDDPG)
+parser.add_argument("--eval_mode", type=str, default="analysis") 
+parser.add_argument("--eval_num", type=int, default=40) 
+parser.add_argument("--horizon", default=250, type=int)  
+parser.add_argument("--recover", type=str, default="False")
 parser.add_argument("--is_best", type=str, default="False")  # Policy name (MATD3, DDPG or OurDDPG)
 
 parser.add_argument("--is_residual", type=str, default="True")  # Policy name (MATD3, DDPG or OurDDPG)
@@ -45,8 +45,8 @@ parser.add_argument("--knn_critic", default=15, type=int)  # How often (time ste
 parser.add_argument("--reward_t0", default=0.01, type=float)  # Std of Gaussian exploration noise
 parser.add_argument("--residual_t0", default=0.01, type=float)  # Std of Gaussian exploration noise
 parser.add_argument("--discount", default=0.99, type=float)  # Discount factor
-parser.add_argument("--tau", default=0.005, type=float)  # Target network update rate
-parser.add_argument("--policy_freq", default=1, type=int)  # Frequency of delayed policy updates
+parser.add_argument("--tau", default=0.005, type=float) 
+parser.add_argument("--policy_freq", default=1, type=int)  
 
 args = parser.parse_args()
 
