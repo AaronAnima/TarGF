@@ -11,6 +11,21 @@ The environments used in this work are demonstrated as follows:
 |<img src="Assets/demos/circling_demo.gif" align="middle" width="160"/>  | <img src="Assets/demos/clustering_demo.gif" align="middle" width="160"/>  | <img src="Assets/demos/hybrid_demo.gif" align="middle" width="160"/>    | <img src="Assets/demos/room_demo.gif" align="middle" width="160"/> |
 
 
+Table of contents:
+
+- [Installation](#Installation)
+  - [Requirements](#Requirements)
+  - [Install Global Dependencies](#Install-Global-Dependencies)
+  - [Install *Ball Rearrangement* Dependencies](#Install-Ball-Rearrangement-Dependencies)
+  - [Install *Room Rearrangement* Dependencies](#Install-Room-Rearrangement-Dependencies)
+- [Training](#Training)
+  - [Target Score Network](#Training-the-Target-Score-Network)
+  - [*Ours (SAC)*](#Training-Ours-(SAC))
+- [Evaluation](#Training)
+  - [*Ours (ORCA)*](#For-Ours-(ORCA))
+  - [*Ours (SAC)*](#For-Ours-(SAC))
+
+
 ## Installation
 
 ### Requirements

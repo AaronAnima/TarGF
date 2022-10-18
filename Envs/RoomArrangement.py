@@ -859,6 +859,7 @@ class RLEnvDynamic:
             _, _, room_name = state
             self.room_names.append(room_name)
         self.room_names = list(set(self.room_names))
+        self.room_names.sort()
         for room_name in self.room_names:
             assert room_name in self.room_metas_dict.keys()
         
@@ -995,9 +996,13 @@ class RLEnvFull:
         for state in test_dataset:
             _, _, room_name = state
             self.room_names.append(room_name)
+        self.room_names.sort()
 
+        # make sure all the room names are contained in metadatas
         with open(f'../ExpertDatasets/{meta_name}.pickle', 'rb') as f:
             self.room_metas_dict = pickle.load(f)
+        for room_name in self.room_names:
+            assert room_name in self.room_metas_dict.keys()
 
         # self.room_names = self.tar_dataset.folders_path
         self.proxy_dict = {
