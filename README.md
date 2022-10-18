@@ -24,6 +24,9 @@ Table of contents:
 - [Evaluation](#Training)
   - [*Ours (ORCA)*](#For-Ours-(ORCA))
   - [*Ours (SAC)*](#For-Ours-(SAC))
+- [Citation](#Citation)
+- [Contact](#Contact)
+- [License](#License)
 
 
 ## Installation
@@ -179,6 +182,20 @@ To obtain qualitative results of *Ball Rearrangmenet*, change the `--eval_mode f
 The results will be saved in `../logs/analysis_${exp_name}`.
 
 
+## Citation
+```
+@inproceedings{wu2022targf,
+  title     = {Tar{GF}: Learning Target Gradient Field for Object Rearrangement},
+  author    = {Mingdong Wu and fangwei zhong and Yulong Xia and Hao Dong},
+  booktitle = {Thirty-Sixth Conference on Neural Information Processing Systems},
+  year      = {2022},
+  url       = {https://openreview.net/forum?id=Euv1nXN98P3}
+}
+
+```
+
+## Contact
+If you have any suggestion or questions, please get in touch at [wmingd@pku.edu.cn](wmingd@pku.edu.cn) or [zfw1226@gmail.com](zfw1226@gmail.com).
 
 
 
