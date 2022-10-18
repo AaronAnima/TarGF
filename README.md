@@ -1,8 +1,9 @@
 # TarGF: Learning Target Gradient Field for Object Rearrangement 
 
 [[Website](https://sites.google.com/view/targf/)] [[Arxiv](https://arxiv.org/abs/2209.00853)]
+<img src="Assets/demos/pipeline.png" align="middle" width="700"/> 
 
-We study object rearrangement without explicit goal specification. The agent is given examples from a target distribution and aims at rearranging objects to increase the likelihood of the distribution. Our key idea is to learn a **target gradient field** that indicates the fastest direction to increase the likelihood from examples via score-matching. We further incoporates the target gradient field with reinforcement learning or model-based planner to tackle this task in model-free and model-based setting respectively. Our method significantly outperforms the state-of-the-art methods in the quality of the terminal state, the efficiency of the control process, and scalability.
+The agent is given examples from a target distribution and aims at rearranging objects to increase the likelihood of the distribution. Our key idea is to learn a **target gradient field** that indicates the fastest direction to increase the likelihood from examples via score-matching. We further incoporates the target gradient field with reinforcement learning or model-based planner to tackle this task in model-free and model-based setting respectively.
 
 The environments used in this work are demonstrated as follows:
 
@@ -10,9 +11,7 @@ The environments used in this work are demonstrated as follows:
 |  ----  | ----  | ----  | ----  |
 |<img src="Assets/demos/circling_demo.gif" align="middle" width="160"/>  | <img src="Assets/demos/clustering_demo.gif" align="middle" width="160"/>  | <img src="Assets/demos/hybrid_demo.gif" align="middle" width="160"/>    | <img src="Assets/demos/room_demo.gif" align="middle" width="160"/> |
 
-This repo is the official implementation of [TarGF](https://arxiv.org/abs/2209.00853).
-
-Contents of this repo are as follows:
+This repo is the official implementation of [TarGF](https://arxiv.org/abs/2209.00853). Contents of this repo are as follows:
 
 - [Installation](#Installation)
   - [Requirements](#Requirements)

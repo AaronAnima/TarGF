@@ -1,5 +1,4 @@
 *.mp4
-*.png
 *.jpg
 logs
 __pycache__
