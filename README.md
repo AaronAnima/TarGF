@@ -1,6 +1,8 @@
 # TarGF: Learning Target Gradient Field for Object Rearrangement 
 
 [[Website](https://sites.google.com/view/targf/)] [[Arxiv](https://arxiv.org/abs/2209.00853)]
+
+
 <img src="Assets/demos/pipeline.png" align="middle" width="700"/> 
 
 The agent is given examples from a target distribution and aims at rearranging objects to increase the likelihood of the distribution. Our key idea is to learn a **target gradient field** that indicates the fastest direction to increase the likelihood from examples via score-matching. We further incoporates the target gradient field with reinforcement learning or model-based planner to tackle this task in model-free and model-based setting respectively.
