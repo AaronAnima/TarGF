@@ -226,8 +226,7 @@ def merge_metrics_dicts(metrics_dicts):
 
 
 
-# def full_metric(env, env_type, exp_path, policy, n_balls, exp_name, eval_num, recover=False, seeds=[0, 5, 10, 15, 20]):
-def full_metric(env, env_type, exp_path, policy, n_balls, exp_name, eval_num, recover=False, seeds=[0, 5]):
+def full_metric(env, env_type, exp_path, policy, n_balls, exp_name, eval_num, recover=False, seeds=[0, 5, 10, 15, 20]):
     ''' If there exists trajs, then skip '''
     trajs = None
     trajs_path = exp_path+f'{len(seeds)}seeds_trajs_{n_balls}_{eval_num}_{env.max_episode_len}.pickle'

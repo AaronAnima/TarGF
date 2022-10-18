@@ -238,33 +238,33 @@ def visualize_states(states, room_names, eval_idx, writer):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--policy", default="MASAC")  # Policy name (MATD3, DDPG or OurDDPG)
-    parser.add_argument("--exp_name", type=str, default="debug")  # Policy name (MATD3, DDPG or OurDDPG)
-    parser.add_argument("--reward_mode", type=str, default="densityIncre")  # Policy name (MATD3, DDPG or OurDDPG)
-    parser.add_argument("--is_residual", type=str, default="True")  # Policy name (MATD3, DDPG or OurDDPG)
-    parser.add_argument("--is_single_room", type=str, default="True")  # Policy name (MATD3, DDPG or OurDDPG)
-    parser.add_argument("--normalize_reward", type=str, default="True")  # Policy name (MATD3, DDPG or OurDDPG)
-    parser.add_argument("--score_exp", type=str, default="network")  # Policy name (MATD3, DDPG or OurDDPG)
-    parser.add_argument("--eval_num", type=int, default=40)  # Policy name (MATD3, DDPG or OurDDPG)
-    parser.add_argument("--sigma", type=float, default=25.)  # Policy name (MATD3, DDPG or OurDDPG)
-    parser.add_argument("--max_vel", type=float, default=4.)  # Policy name (MATD3, DDPG or OurDDPG)
-    parser.add_argument("--hidden_dim", type=int, default=128)  # Policy name (MATD3, DDPG or OurDDPG)
-    parser.add_argument("--embed_dim", type=int, default=64)  # Policy name (MATD3, DDPG or OurDDPG)
-    parser.add_argument("--buffer_size", type=int, default=1e6)  # Policy name (MATD3, DDPG or OurDDPG)
-    parser.add_argument("--reward_t0", default=0.01, type=float)  # Std of Gaussian exploration noise
-    parser.add_argument("--residual_t0", default=0.01, type=float)  # Std of Gaussian exploration noise
-    parser.add_argument("--lambda_sim", default=1.0, type=float)  # Std of Gaussian exploration noise
-    parser.add_argument("--horizon", default=250, type=int)  # How often (time steps) we evaluate
-    parser.add_argument("--reward_freq", default=1, type=int)  # How often (time steps) we evaluate
-    parser.add_argument("--lambda_col", default=1, type=float)  # How often (time steps) we evaluate\
-    parser.add_argument("--seed", default=0, type=int)  # Sets Gym, PyTorch and Numpy seeds
-    parser.add_argument("--start_timesteps", default=25e3, type=int)  # Time steps initial random policy is used
-    parser.add_argument("--eval_freq", default=10, type=int)  # How often (episodes!) we evaluate
-    parser.add_argument("--max_timesteps", default=1e6, type=int)  # Max time steps to run environment
-    parser.add_argument("--batch_size", default=1024, type=int)  # Batch size for both actor and critic
-    parser.add_argument("--discount", default=0.99, type=float)  # Discount factor
-    parser.add_argument("--tau", default=0.005, type=float)  # Target network update rate
-    parser.add_argument("--policy_freq", default=1, type=int)  # Frequency of delayed policy updates
+    parser.add_argument("--policy", default="MASAC")  
+    parser.add_argument("--exp_name", type=str)  
+    parser.add_argument("--reward_mode", type=str, default="densityIncre")  
+    parser.add_argument("--is_residual", type=str, default="True")  
+    parser.add_argument("--is_single_room", type=str, default="False")  
+    parser.add_argument("--normalize_reward", type=str, default="True")  
+    parser.add_argument("--score_exp", type=str)  
+    parser.add_argument("--eval_num", type=int, default=4)  
+    parser.add_argument("--sigma", type=float, default=25.)  
+    parser.add_argument("--max_vel", type=float, default=4.)  
+    parser.add_argument("--hidden_dim", type=int, default=128)  
+    parser.add_argument("--embed_dim", type=int, default=64)  
+    parser.add_argument("--buffer_size", type=int, default=1e6)  
+    parser.add_argument("--reward_t0", default=0.01, type=float)  
+    parser.add_argument("--residual_t0", default=0.01, type=float)  
+    parser.add_argument("--horizon", default=250, type=int)  
+    parser.add_argument("--reward_freq", default=1, type=int)  
+    parser.add_argument("--lambda_col", default=1.0, type=float) 
+    parser.add_argument("--lambda_sim", default=5.0, type=float)  
+    parser.add_argument("--seed", default=0, type=int) 
+    parser.add_argument("--start_timesteps", default=25e3, type=int)  
+    parser.add_argument("--eval_freq", default=50, type=int) 
+    parser.add_argument("--max_timesteps", default=1e6, type=int)  
+    parser.add_argument("--batch_size", default=256, type=int) 
+    parser.add_argument("--discount", default=0.95, type=float) 
+    parser.add_argument("--tau", default=0.005, type=float) 
+    parser.add_argument("--policy_freq", default=1, type=int) 
     args = parser.parse_args()
 
     if not os.path.exists("../logs"):

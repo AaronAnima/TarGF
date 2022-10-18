@@ -52,51 +52,116 @@ If you do not need to run this experiment, you can skip this procedure.
 
 ## Training 
 
-We assign an `$EXP_NAME` for each experiement, which can be modified in each `xxxx.sh` file.
 
-The training log (Tensorboard), checkpoints and evaluation results will be (automatically) saved in `../logs/$EXP_NAME`.
+### Training the Target Score Network
 
-To visualise the training log (Tensorboard), you can modify `tb.sh` script with your customed `$EXP_NAME` accordingly.
-
-In this repo, we provide the original training/evaluations scripts of *Ours(SAC)* and *Ours(ORCA)* used in our experiments on paper. 
-All the bash commands are stored in comments of scripts, you can uncomment or even specify your own configs to run the experiments.
-
+For *Circling*:
+```
+python Runners/BallSDE.py --exp_name Circling_Score --data_name Circling_Examples --env sorting
+```
 
 
-- Training the *Target Score Network*: 
-`bash sde_ball.sh`. The ode-sampler results are visualised in `../logs/$EXP_NAME/test_batch/`
+For *Clustering*:
+```
+python Runners/BallSDE.py --exp_name Clustering_Score --data_name Clustering_Examples --env placing
+```
 
-- Training *Ours(SAC)*: 
-`bash sac_ball.sh` 
 
-For all scripts mentioned above, you can modify the scripts to specify your customed `$EXP_NAME` or choose different hyperparameters.
+For *Circling+Clustering*:
+```
+python Runners/BallSDE.py --exp_name Hybrid_Score --data_name Hybrid_Examples --env hybrid
+```
 
-### For Room Rearrangement
 
-- Training the *Target Score Network*: 
-`bash sde_room.sh`. The ode-sampler results (starting from unseen scene condition) are visualised in `../logs/$EXP_NAME/test_batch/`
+For *Room Rearrangement*:
+```
+python Runners/RoomSDE.py --exp_name Room_Score --data_name UnShuffledRoomsMeta
+```
 
-- Training *Ours(SAC)*: 
-`bash sac_ball.sh`. The visualisation results in tensorboard are sampled starting from unseen scene condition.
+You can also visualise the in-process results via TensorBoard:
+```
+tensorboard --logdir ../logs/${EXP_NAME}/tb --port 10020
+```
+where `${EXP_NAME}` denotes the argument following `--exp_name`.
+
+### Training *Ours (SAC)*
+
+For *Circling*:
+```
+python Runners/BallSAC.py --exp_name Circling_SAC --env placing --lambda_col 3.0 --lambda_sim 1.0 --score_exp Circling_Score 
+```
+
+
+For *Clustering*:
+```
+python Runners/BallSAC.py --exp_name Clustering_SAC --env sorting --lambda_col 5.0 --lambda_sim 1.0 --score_exp Clustering_Score 
+```
+
+
+For *Circling+Clustering*:
+```
+python Runners/BallSAC.py --exp_name Hybrid_SAC --env hybrid --lambda_col 5.0 --lambda_sim 1.0 --score_exp Hybrid_Score
+```
+
+
+For *Room Rearrangement*:
+```
+python Runners/RoomSAC.py --exp_name Room_SAC --score_exp Room_Score
+```
+
 
 ## Evaluation
 
-In `ball_sac.sh` and `room_sac.sh`, the evaluation scripts are stored below the training scripts. We seperate them using titles `---Training---` and `---Evaluation---`. 
-To evaluate *Ours(ORCA)*, 
+### For *Ours (ORCA))*
 
-### For Ball Rearrangement
-- Evaluating *Ours(SAC)*: 
-Uncomment commands under the `Evaluation` of `sac_ball.sh`. Then assign `$EXP_NAME` to `--exp_name` accordingly. You can visualise the episodes by changing `--eval_mode fullmetric` to `--eval_mode analysis`. Results are saved in `../logs/$EXP_NAME/analysis`.
+For *Circling*:
+```
+python Runners/BallSAC.py --exp_name Circling_ORCA --env placing --score_exp Circling_Score --mode eval
+```
 
 
-- Evaluating *Ours(ORCA)*: 
-Assign `$EXP_NAME` to `--exp_name` accordingly and run `bash orca_ball.sh`. You can visualise the episodes by changing `--mode eval` to `--mode debug`. Results are saved in `../logs/$EXP_NAME`.
+For *Clustering*:
+```
+python Runners/BallSAC.py --exp_name Clustering_ORCA --env sorting --score_exp Clustering_Score --mode eval
+```
 
-### For Room Rearrangement
 
-- Evaluating *Ours(SAC)*: 
-Uncomment commands under the `Evaluation` of `sac_room.sh`. Then assign `$EXP_NAME` to `--exp_name` accordingly. You can visualise the episodes by changing `--save_video False` to `--save_video True` (It will take tens of minutes to collect trajectories before start saving videos). Results are saved in `../logs/$EXP_NAME/eval_$EXP_NAME`.
+For *Circling+Clustering*:
+```
+python Runners/BallSAC.py --exp_name Hybrid_ORCA --env hybrid --score_exp Hybrid_Score --mode eval
+```
 
+To obtain qualitative results, change the `--mode eval` to `--mode debug`.
+The results will be saved in `../logs/${exp_name}`
+
+
+### For *Ours (SAC))*
+
+For *Circling*:
+```
+python Runners/BallEvalSAC.py --exp_name Circling_SAC --env placing --score_exp Circling_Score --eval_mode full_metric
+```
+
+
+For *Clustering*:
+```
+python Runners/BallSAC.py --exp_name Clustering_SAC --env sorting --score_exp Clustering_Score --eval_mode full_metric
+```
+
+
+For *Circling+Clustering*:
+```
+python Runners/BallSAC.py --exp_name Hybrid_SAC --env hybrid --score_exp Hybrid_Score --eval_mode full_metric
+```
+
+
+For *Room Rearrangement*:
+```
+python Runners/RoomSAC.py --exp_name Room_SAC --score_exp Room_Score --save_video True
+```
+
+To obtain qualitative results of *Ball Rearrangmenet*, change the `--eval_mode full_metric` to `--eval_mode analysis`.
+The results will be saved in `../logs/analysis_${exp_name}`.
 
 
 

@@ -103,10 +103,6 @@ def eval_trajs(
         average_collision = {'mu': average_collision_mu, 'std': average_collision_std}
     
     if is_coverage:
-        # gt_num = len(trajs)//2
-        # gt_num = len(traj_states)*1
-        # gt_num = len(trajs)//10
-        # gt_num = len(trajs)*2
         room_name_to_gt_states = {}
         for room_name, gt_state in zip(room_names, gt_states):
             if room_name not in room_name_to_gt_states:
@@ -122,49 +118,6 @@ def eval_trajs(
             room_name_to_states[room_name].append(state[1])
         coverage_mu, coverage_std = calc_coverage(room_name_to_gt_states, room_name_to_states)
         res += f'-----coverage_score: mu: {coverage_mu:.3f} std: {coverage_std:.3f}-----\n'
-    
-    # print('Start collecting end imgs!')
-    # sampler = SceneSampler('bedroom', gui='DIRECT', resize_dict={'bed': 0.8, 'shelf': 0.8})
-    # init_imgs = []
-    # end_imgs = []
-    # gt_imgs = []
-    # for i, room_name in enumerate(room_names):
-    #     print(f'[{i}/{len(room_names)}]')
-    #     init_state = traj_states[i][0]
-    #     end_state = traj_states[i][-1]
-    #     gt_state = gt_states[i]
-
-    #     sim = sampler[room_name]
-    #     sim.normalize_room()
-    #     sim.set_state(init_state[1], init_state[0])
-    #     img = sim.take_snapshot(512, height=10.0)
-    #     init_imgs.append(img)
-    #     sim.set_state(end_state[1], end_state[0])
-    #     img = sim.take_snapshot(512, height=10.0)
-    #     end_imgs.append(img)
-    #     sim.set_state(gt_state[1], gt_state[0])
-    #     img = sim.take_snapshot(512, height=10.0)
-    #     gt_imgs.append(img)
-
-    #     # close env after rendering
-    #     sim.disconnect()
-
-    # for i, (traj_state, room_name) in enumerate(zip(traj_states, room_names)):
-    #     print(f'[{i}/{len(room_names)}]')
-    #     state_item = traj_state[-1]
-    #     sim = sampler[room_name]
-    #     sim.normalize_room()
-
-    #     # vis GT state
-    #     sim.set_state(state_item[1], state_item[0])
-    #     img = sim.take_snapshot(512, height=10.0)
-    #     end_imgs.append(img)
-
-    #     # close env after rendering
-    #     sim.disconnect()
-    #     # eval_env.reset(room_name=room_name, goal=state_item, flip=False, rotate=False, brownian=False)
-    #     # end_imgs.append(np.transpose(cv2.cvtColor(eval_env.sim.sim.take_snapshot(512, height=10.0), cv2.COLOR_BGR2RGB), (2, 0, 1)))
-    #     # end_imgs.append(cv2.cvtColor(eval_env.sim.sim.take_snapshot(512, height=10.0), cv2.COLOR_BGR2RGB))
 
     print(res)
     print(f'EXP_NAME: {exp_name_}')
@@ -172,9 +125,6 @@ def eval_trajs(
         'average_collision': average_collision,
         'coverage_mu': coverage_mu,
         'coverage_std': coverage_std,
-        # 'init_imgs': init_imgs,
-        # 'end_imgs': end_imgs,
-        # 'gt_imgs': gt_imgs,
     }
     return metrics
 
@@ -204,7 +154,6 @@ def merge_metrics_dicts(metrics_dicts, exp_name_):
 
 def eval_policy(eval_env, policy, eval_num, exp_name, exp_path, save_video, recover=True, is_random_init=True, 
 seeds=[0, 5, 10, 15, 20],
-# seeds=[0],
 ):
     exists_or_mkdir(exp_path)
     metrics_path = os.path.join(exp_path, f'{len(seeds)}seeds_metrics_{eval_num}.pkl')
@@ -241,7 +190,7 @@ seeds=[0, 5, 10, 15, 20],
         pickle.dump(metrics, f)
     
     if save_video == 'True':
-        take_videos(terminal_states, room_names, exp_name, exp_path)
+        take_videos(terminal_states[0], room_names[0], exp_name, exp_path) # only save for seed 0
     print(f'EXP_NAME: {exp_name}')
 
 
