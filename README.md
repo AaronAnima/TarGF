@@ -1,55 +1,55 @@
-# TarGF
-Official Implementation of Learning Gradient Fields for Object Rearrangement.
+# Official Implementation of TarGF: Learning Target Gradient Field for Object Rearrangement 
 
 [[Website](https://sites.google.com/view/targf/)] [[Arxiv](https://arxiv.org/abs/2209.00853)]
 
+We study object rearrangement without explicit goal specification. The agent is given examples from a target distribution and aims at rearranging objects to increase the likelihood of the distribution. Our key idea is to learn a **target gradient field** that indicates the fastest direction to increase the likelihood from examples via score-matching. We further incoporates the target gradient field with reinforcement learning or model-based planner to tackle this task in model-free and model-based setting respectively. Our method significantly outperforms the state-of-the-art methods in the quality of the terminal state, the efficiency of the control process, and scalability.
+
+The environments used in this work are demonstrated as follows:
+
+|<img src="Assets/demos/circling_demo.gif" align="middle" width="200"/>  | <img src="Assets/demos/clustering_demo.gif" align="middle" width="200"/>  | <img src="Assets/demos/hybrid_demo.gif" align="middle" width="200"/>    | <img src="Assets/demos/room_demo.gif" align="middle" width="200"/> |
+| *Circling* | *Clustering* | *Circling + Clustering* | *Room Rearrangement* |
+
 ## Installation
-For `Ubuntu >= 18.04` and `Anaconda3`, you can successfully run ball rearrangement tasks following the instructions below:
+
+### Requirements
 
 ```
+Ubuntu >= 18.04
+
+Anaconda3
+```
+
+### Install Global Dependencies
+
+```
+git clone https://github.com/AaronAnima/TarGF
+
+cd TarGF
+
 conda create -n targf python=3.9
+
+conda activate targf
 
 conda install pytorch==1.11.0 torchvision==0.12.0 torchaudio==0.11.0 cudatoolkit=11.3 -c pytorch
 
 conda install pyg -c pyg
 
-pip install opencv-python tensorboard pytorch_fid gym pybullet ipdb imageio 
+pip install opencv-python tensorboard pytorch_fid ipdb imageio 
 ```
 
-To further run our room rearrangement tasks, you need to further install `igibson`, download the preprocessed version of `3DFRONT` and meta-data used in our experiments following the instructions below:
+### Install *Ball Rearrangement* Dependencies
 
-First download the `3DFRONT` dataset preprocessed by us:
+`pip install gym pybullet`
 
-**[2022/8/31 update] Due to the license issue, we temporarily canceled the sharing link below. If you need this dataset urgently, please email the authors.**
+### Install *Room Rearrangement* Dependencies
 
-```
-cd Targf
-wget https://www.dropbox.com/s/7j8f3dvn976hmaf/data.zip
-unzip data.zip
-rm -rf data.zip
-```
+Please follow the README in [this page](https://github.com/AaronAnima/TarGF/tree/main/Envs).
 
-Then setup softlink to `igibson` package and modify some modules of `igibson`:
+If you do not need to run this experiment, you can skip this procedure. 
 
-```
-cd Targf
-pip install igibson==1.0.3
-python setup.py # modify some files in igibson, and construct a softlink to data folder
-
-```
-
-
-Besides, you need to download the meta-data of our cleaned data:
-
-```
-wget https://www.dropbox.com/s/x6b2vuv8di8fyj8/RoomMetas.zip # download metadata
-unzip RoomMetas.zip
-rm -rf RoomMetas.zip
-mkdir ../../ExpertDatasets # the metadata should be placed in there
-cp RoomMetas/* ../../ExpertDatasets/ -r
-```
 
 ## Training 
+
 We assign an `$EXP_NAME` for each experiement, which can be modified in each `xxxx.sh` file.
 
 The training log (Tensorboard), checkpoints and evaluation results will be (automatically) saved in `../logs/$EXP_NAME`.
@@ -59,9 +59,8 @@ To visualise the training log (Tensorboard), you can modify `tb.sh` script with 
 In this repo, we provide the original training/evaluations scripts of *Ours(SAC)* and *Ours(ORCA)* used in our experiments on paper. 
 All the bash commands are stored in comments of scripts, you can uncomment or even specify your own configs to run the experiments.
 
-<!-- For more baselines' scripts and implementation, we defer to XXXXX. -->
 
-### For Ball Rearrangement
+
 - Training the *Target Score Network*: 
 `bash sde_ball.sh`. The ode-sampler results are visualised in `../logs/$EXP_NAME/test_batch/`
 
