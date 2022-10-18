@@ -8,7 +8,7 @@ The environments used in this work are demonstrated as follows:
 
 | *Circling* | *Clustering* | *Circling + Clustering* | *Room Rearrangement* |
 |  ----  | ----  | ----  | ----  |
-|<img src="Assets/demos/circling_demo.gif" align="middle" width="200"/>  | <img src="Assets/demos/clustering_demo.gif" align="middle" width="200"/>  | <img src="Assets/demos/hybrid_demo.gif" align="middle" width="200"/>    | <img src="Assets/demos/room_demo.gif" align="middle" width="200"/> |
+|<img src="Assets/demos/circling_demo.gif" align="middle" width="160"/>  | <img src="Assets/demos/clustering_demo.gif" align="middle" width="160"/>  | <img src="Assets/demos/hybrid_demo.gif" align="middle" width="160"/>    | <img src="Assets/demos/room_demo.gif" align="middle" width="160"/> |
 
 
 ## Installation
