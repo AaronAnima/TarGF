@@ -6,8 +6,10 @@ We study object rearrangement without explicit goal specification. The agent is 
 
 The environments used in this work are demonstrated as follows:
 
-|<img src="Assets/demos/circling_demo.gif" align="middle" width="200"/>  | <img src="Assets/demos/clustering_demo.gif" align="middle" width="200"/>  | <img src="Assets/demos/hybrid_demo.gif" align="middle" width="200"/>    | <img src="Assets/demos/room_demo.gif" align="middle" width="200"/> |
 | *Circling* | *Clustering* | *Circling + Clustering* | *Room Rearrangement* |
+|  ----  | ----  | ----  | ----  |
+|<img src="Assets/demos/circling_demo.gif" align="middle" width="200"/>  | <img src="Assets/demos/clustering_demo.gif" align="middle" width="200"/>  | <img src="Assets/demos/hybrid_demo.gif" align="middle" width="200"/>    | <img src="Assets/demos/room_demo.gif" align="middle" width="200"/> |
+
 
 ## Installation
 
