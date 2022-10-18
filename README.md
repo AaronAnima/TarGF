@@ -1,4 +1,4 @@
-# Official Implementation of TarGF: Learning Target Gradient Field for Object Rearrangement 
+# TarGF: Learning Target Gradient Field for Object Rearrangement 
 
 [[Website](https://sites.google.com/view/targf/)] [[Arxiv](https://arxiv.org/abs/2209.00853)]
 
@@ -10,8 +10,9 @@ The environments used in this work are demonstrated as follows:
 |  ----  | ----  | ----  | ----  |
 |<img src="Assets/demos/circling_demo.gif" align="middle" width="160"/>  | <img src="Assets/demos/clustering_demo.gif" align="middle" width="160"/>  | <img src="Assets/demos/hybrid_demo.gif" align="middle" width="160"/>    | <img src="Assets/demos/room_demo.gif" align="middle" width="160"/> |
 
+This repo is the official implementation of [TarGF](https://arxiv.org/abs/2209.00853).
 
-Table of contents:
+Contents of this repo are as follows:
 
 - [Installation](#Installation)
   - [Requirements](#Requirements)
@@ -32,12 +33,9 @@ Table of contents:
 ## Installation
 
 ### Requirements
-
-```
-Ubuntu >= 18.04
-
-Anaconda3
-```
+- Ubuntu >= 18.04
+- Anaconda3 
+- python >= 3.9
 
 ### Install Global Dependencies
 
@@ -102,7 +100,7 @@ tensorboard --logdir ../logs/${EXP_NAME}/tb --port 10020
 ```
 where `${EXP_NAME}` denotes the argument following `--exp_name`.
 
-### Training *Ours (SAC)*
+### Training SAC with TarGF
 
 For *Circling*:
 ```
@@ -130,7 +128,7 @@ python Runners/RoomSAC.py --exp_name Room_SAC --score_exp Room_Score
 
 ## Evaluation
 
-### For *Ours (ORCA))*
+### For *Ours (ORCA)*
 
 For *Circling*:
 ```
@@ -153,7 +151,7 @@ To obtain qualitative results, change the `--mode eval` to `--mode debug`.
 The results will be saved in `../logs/${exp_name}`
 
 
-### For *Ours (SAC))*
+### For *Ours (SAC)*
 
 For *Circling*:
 ```
@@ -196,6 +194,9 @@ The results will be saved in `../logs/analysis_${exp_name}`.
 
 ## Contact
 If you have any suggestion or questions, please get in touch at [wmingd@pku.edu.cn](wmingd@pku.edu.cn) or [zfw1226@gmail.com](zfw1226@gmail.com).
+
+## LICENSE
+TarGF has an MIT license, as found in the [LICENSE](./LICENSE) file.
 
 
 
