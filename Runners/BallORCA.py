@@ -303,7 +303,7 @@ def eval_orca(seeds=[0]):
     metrics_dicts = []
     for seed, cur_trajs in zip(seeds, trajs):
         # By default, seeds = [0, 5, 10, ... 5*k, ... ]
-        metrics_dicts.append(eval_trajs(args.env, cur_trajs, args.num_objs, env, args.exp_name, seed=5*seed))
+        metrics_dicts.append(eval_trajs(args.env, cur_trajs, args.num_objs, env, args.log_dir, seed=5*seed))
     # metrics = merge_metrics_dicts(metrics_dicts)
     metrics = metrics_dicts[0]
 
@@ -313,7 +313,7 @@ def eval_orca(seeds=[0]):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--exp_name", type=str, default="debug")  
+    parser.add_argument("--log_dir", type=str, default="debug")  
     parser.add_argument("--env", type=str, default="sorting")  
     parser.add_argument("--action_type", type=str, default="vel")  
     parser.add_argument("--goal_mode", type=str, default="Score")  
@@ -336,7 +336,7 @@ if __name__ == '__main__':
     if not os.path.exists("../logs"):
         os.makedirs("../logs")
 
-    exp_path = f"../logs/{args.exp_name}/"
+    exp_path = f"../logs/{args.log_dir}/"
     if not os.path.exists(exp_path):
         os.makedirs(exp_path)
     
@@ -410,7 +410,7 @@ if __name__ == '__main__':
         debug_orca(args.eval_num)
     elif args.mode == 'eval':
         ''' Eval Episodes '''
-        # full_metric(env, args.env, exp_path, policy, args.num_objs, args.exp_name, args.eval_num, recover=(args.recover == 'True'))
+        # full_metric(env, args.env, exp_path, policy, args.num_objs, args.log_dir, args.eval_num, recover=(args.recover == 'True'))
         eval_orca()
     else:
         print('ORCA Mode Error!!!')

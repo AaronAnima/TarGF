@@ -92,7 +92,7 @@ def visualize_states(eval_states, room_type, ref_batch, logger, nrow, suffix):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--exp_name', type=str)
+    parser.add_argument('--log_dir', type=str)
     parser.add_argument('--data_name', type=str)
     parser.add_argument('--test_decay', type=str, default='False')
     parser.add_argument('--room_type', type=str, default='bedroom')
@@ -116,11 +116,11 @@ if __name__ == '__main__':
 
     # create log path
     exists_or_mkdir('../logs')
-    ckpt_path = f'../logs/{args.exp_name}/'
+    ckpt_path = f'../logs/{args.log_dir}/'
     exists_or_mkdir(ckpt_path)
-    eval_path = f'../logs/{args.exp_name}/test_batch/'
+    eval_path = f'../logs/{args.log_dir}/test_batch/'
     exists_or_mkdir(eval_path)
-    tb_path = f'../logs/{args.exp_name}/tb'
+    tb_path = f'../logs/{args.log_dir}/tb'
     exists_or_mkdir(tb_path)
 
     # init writer

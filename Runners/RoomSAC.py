@@ -239,7 +239,7 @@ def visualize_states(states, room_names, eval_idx, writer):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--policy", default="MASAC")  
-    parser.add_argument("--exp_name", type=str)  
+    parser.add_argument("--log_dir", type=str)  
     parser.add_argument("--reward_mode", type=str, default="densityIncre")  
     parser.add_argument("--is_residual", type=str, default="True")  
     parser.add_argument("--is_single_room", type=str, default="False")  
@@ -270,11 +270,11 @@ if __name__ == "__main__":
     if not os.path.exists("../logs"):
         os.makedirs("../logs")
 
-    exp_path = f"../logs/{args.exp_name}/"
+    exp_path = f"../logs/{args.log_dir}/"
     if not os.path.exists(exp_path):
         os.makedirs(exp_path)
 
-    tb_path = f"../logs/{args.exp_name}/tb"
+    tb_path = f"../logs/{args.log_dir}/tb"
     if not os.path.exists(tb_path):
         os.makedirs(tb_path)
     writer = SummaryWriter(tb_path)
@@ -414,7 +414,7 @@ if __name__ == "__main__":
                 terminal_states, room_names = eval_metric(env, policy, reward_func, writer, eval_episodes=eval_num, eval_idx=episode_num+1)
                 env.close()
                 visualize_states(terminal_states, room_names, eval_idx=episode_num+1, writer=writer)
-                print(f'EXP_NAME: {args.exp_name}')
+                print(f'log_dir: {args.log_dir}')
             
             # Reset environment
             state, done = env.reset(), False

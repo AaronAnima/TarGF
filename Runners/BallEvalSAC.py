@@ -21,7 +21,7 @@ PDF_DICT = {'sorting': pdf_sorting, 'placing': pdf_placing, 'hybrid': pdf_hybrid
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--exp_name", type=str)  
+parser.add_argument("--log_dir", type=str)  
 parser.add_argument("--env", type=str)  
 parser.add_argument("--action_type", type=str, default="vel")  
 parser.add_argument("--is_onebyone", type=str, default="False")  
@@ -53,11 +53,11 @@ args = parser.parse_args()
 if not os.path.exists("../logs"):
     os.makedirs("../logs")
 
-exp_path = f"../logs/{args.exp_name}/"
+exp_path = f"../logs/{args.log_dir}/"
 if not os.path.exists(exp_path):
     os.makedirs(exp_path)
 
-tb_path = f"../logs/{args.exp_name}/tb"
+tb_path = f"../logs/{args.log_dir}/tb"
 if not os.path.exists(tb_path):
     os.makedirs(tb_path)
 
@@ -80,9 +80,9 @@ with open(f'{exp_path}/policy.pickle', 'rb') as f:
 EVAL_NUM = args.eval_num
 if args.eval_mode == 'fullmetric':
     seeds = [args.seed + i*5 for i in range(5)]
-    full_metric(env, args.env, exp_path, policy, args.n_boxes, args.exp_name, args.eval_num, recover=(args.recover == 'True'), seeds=seeds)
+    full_metric(env, args.env, exp_path, policy, args.n_boxes, args.log_dir, args.eval_num, recover=(args.recover == 'True'), seeds=seeds)
 elif args.eval_mode == 'analysis':
-    eval_path = f"../logs/{args.exp_name}/analysis_{args.exp_name}/"
+    eval_path = f"../logs/{args.log_dir}/analysis_{args.log_dir}/"
     if not os.path.exists(eval_path):
         os.makedirs(eval_path)
     analysis_score = policy.target_score

@@ -71,59 +71,60 @@ If you do not need to run this experiment, you can skip this procedure.
 
 
 ### Training the Target Score Network
+We assign an argument `--log_dir $log_dir` for each experiment. The in-process results will be saved in `../logs/${log_dir}`.
 
 For *Circling*:
 ```
-python Runners/BallSDE.py --exp_name Circling_Score --data_name Circling_Examples --env sorting
+python Runners/BallSDE.py --log_dir Circling_Score --data_name Circling_Examples --env sorting
 ```
 
 
 For *Clustering*:
 ```
-python Runners/BallSDE.py --exp_name Clustering_Score --data_name Clustering_Examples --env placing
+python Runners/BallSDE.py --log_dir Clustering_Score --data_name Clustering_Examples --env placing
 ```
 
 
 For *Circling+Clustering*:
 ```
-python Runners/BallSDE.py --exp_name Hybrid_Score --data_name Hybrid_Examples --env hybrid
+python Runners/BallSDE.py --log_dir Hybrid_Score --data_name Hybrid_Examples --env hybrid
 ```
 
 
 For *Room Rearrangement*:
 ```
-python Runners/RoomSDE.py --exp_name Room_Score --data_name UnShuffledRoomsMeta
+python Runners/RoomSDE.py --log_dir Room_Score --data_name UnShuffledRoomsMeta
 ```
 
 You can also visualise the in-process results via TensorBoard:
 ```
-tensorboard --logdir ../logs/${EXP_NAME}/tb --port 10020
+tensorboard --logdir ../logs/${log_dir}/tb --port 10020
 ```
-where `${EXP_NAME}` denotes the argument following `--exp_name`.
+where `${log_dir}` denotes the argument following `--log_dir`.
 
 ### Training SAC with TarGF
 
 For *Circling*:
 ```
-python Runners/BallSAC.py --exp_name Circling_SAC --env placing --lambda_col 3.0 --lambda_sim 1.0 --score_exp Circling_Score 
+python Runners/BallSAC.py --log_dir Circling_SAC --env placing --lambda_col 3.0 --lambda_sim 1.0 --score_exp Circling_Score 
 ```
 
 
 For *Clustering*:
 ```
-python Runners/BallSAC.py --exp_name Clustering_SAC --env sorting --lambda_col 5.0 --lambda_sim 1.0 --score_exp Clustering_Score 
+python Runners/BallSAC.py --log_dir Clustering_SAC --env sorting --lambda_col 5.0 --lambda_sim 1.0 --score_exp Clustering_Score 
 ```
 
 
 For *Circling+Clustering*:
 ```
-python Runners/BallSAC.py --exp_name Hybrid_SAC --env hybrid --lambda_col 5.0 --lambda_sim 1.0 --score_exp Hybrid_Score
+python Runners/BallSAC.py --log_dir Hybrid_SAC --env hybrid --lambda_col 5.0 --lambda_sim 1.0 --score_exp Hybrid_Score
 ```
 
 
 For *Room Rearrangement*:
 ```
-python Runners/RoomSAC.py --exp_name Room_SAC --score_exp Room_Score
+python Runners/RoomSAC.py --log_dir Room_SAC --score_exp Room_Score
 ```
 
 
@@ -133,52 +134,52 @@ python Runners/RoomSAC.py --exp_name Room_SAC --score_exp Room_Score
 
 For *Circling*:
 ```
-python Runners/BallSAC.py --exp_name Circling_ORCA --env placing --score_exp Circling_Score --mode eval
+python Runners/BallSAC.py --log_dir Circling_ORCA --env placing --score_exp Circling_Score --mode eval
 ```
 
 
 For *Clustering*:
 ```
-python Runners/BallSAC.py --exp_name Clustering_ORCA --env sorting --score_exp Clustering_Score --mode eval
+python Runners/BallSAC.py --log_dir Clustering_ORCA --env sorting --score_exp Clustering_Score --mode eval
 ```
 
 
 For *Circling+Clustering*:
 ```
-python Runners/BallSAC.py --exp_name Hybrid_ORCA --env hybrid --score_exp Hybrid_Score --mode eval
+python Runners/BallSAC.py --log_dir Hybrid_ORCA --env hybrid --score_exp Hybrid_Score --mode eval
 ```
 
 To obtain qualitative results, change the `--mode eval` to `--mode debug`.
-The results will be saved in `../logs/${exp_name}`
+The results will be saved in `../logs/${log_dir}`
 
 
 ### For *Ours (SAC)*
 
 For *Circling*:
 ```
-python Runners/BallEvalSAC.py --exp_name Circling_SAC --env placing --score_exp Circling_Score --eval_mode full_metric
+python Runners/BallEvalSAC.py --log_dir Circling_SAC --env placing --score_exp Circling_Score --eval_mode full_metric
 ```
 
 
 For *Clustering*:
 ```
-python Runners/BallSAC.py --exp_name Clustering_SAC --env sorting --score_exp Clustering_Score --eval_mode full_metric
+python Runners/BallSAC.py --log_dir Clustering_SAC --env sorting --score_exp Clustering_Score --eval_mode full_metric
 ```
 
 
 For *Circling+Clustering*:
 ```
-python Runners/BallSAC.py --exp_name Hybrid_SAC --env hybrid --score_exp Hybrid_Score --eval_mode full_metric
+python Runners/BallSAC.py --log_dir Hybrid_SAC --env hybrid --score_exp Hybrid_Score --eval_mode full_metric
 ```
 
 
 For *Room Rearrangement*:
 ```
-python Runners/RoomSAC.py --exp_name Room_SAC --score_exp Room_Score --save_video True
+python Runners/RoomSAC.py --log_dir Room_SAC --score_exp Room_Score --save_video True
 ```
 
 To obtain qualitative results of *Ball Rearrangmenet*, change the `--eval_mode full_metric` to `--eval_mode analysis`.
-The results will be saved in `../logs/analysis_${exp_name}`.
+The results will be saved in `../logs/analysis_${log_dir}`.
 
 
 ## Citation

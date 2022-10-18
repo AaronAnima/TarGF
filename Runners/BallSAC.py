@@ -297,7 +297,7 @@ def load_target_score(score_exp, network_mode, num_objs, max_action, is_state=Tr
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--policy", default="BallSAC") 
-    parser.add_argument("--exp_name", type=str) 
+    parser.add_argument("--log_dir", type=str) 
     parser.add_argument("--env", type=str, default="sorting") 
     parser.add_argument("--reward_mode", type=str, default="densityIncre") 
     parser.add_argument("--is_residual", type=str, default="True") 
@@ -337,14 +337,14 @@ if __name__ == "__main__":
     if not os.path.exists("../logs"):
         os.makedirs("../logs")
 
-    exp_path = f"../logs/{args.exp_name}/"
+    exp_path = f"../logs/{args.log_dir}/"
     if not os.path.exists(exp_path):
         os.makedirs(exp_path)
 
     best_ckpt_path = exp_path + 'best'
     last_ckpt_path = exp_path # to be consistent with prev experiments
 
-    tb_path = f"../logs/{args.exp_name}/tb"
+    tb_path = f"../logs/{args.log_dir}/tb"
     if not os.path.exists(tb_path):
         os.makedirs(tb_path)
     writer = SummaryWriter(tb_path)
@@ -539,7 +539,7 @@ if __name__ == "__main__":
 
                 visualize_states(np.stack(infos['Results'][0:eval_col**2]), env, writer, episode_num, eval_col, suffix='episode last state')
                 # eval_policy(policy, args.seed, writer, episode_num, reward_func=reward_func, reward_mode=args.reward_mode)
-                print(f'EXP_NAME: {args.exp_name}')
+                print(f'log_dir: {args.log_dir}')
 
             # as train and eval share the same env
             state, done = env.reset(is_random=True), False
