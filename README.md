@@ -130,7 +130,7 @@ python Runners/RoomSAC.py --log_dir Room_SAC --score_exp Room_Score
 
 ## Evaluation
 
-### For *Ours (ORCA)*
+### For *TarGF (ORCA)*
 
 For *Circling*:
 ```
@@ -153,7 +153,7 @@ To obtain qualitative results, change the `--mode eval` to `--mode debug`.
 The results will be saved in `../logs/${log_dir}`
 
 
-### For *Ours (SAC)*
+### For *TarGF (SAC)*
 
 For *Circling*:
 ```
