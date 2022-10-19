@@ -1,24 +1,17 @@
 import pickle
 import os
 import sys
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 import argparse
-
-import numpy as np
-
 import torch
 
-from Algorithms import BallSAC
-from Runners.BallSAC import TargetScore, load_target_score
-from Runners.BallEvalBase import get_max_vel, load_env, set_seed, analysis, full_metric
 
-
-from utils import pdf_sorting, pdf_placing, pdf_hybrid
-
-from ipdb import set_trace
-
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+from Runners.Eval.BallEvalBase import get_max_vel, load_env, set_seed, analysis, full_metric
+from Runners.Train.BallSAC import TargetScore
+from ball_utils import pdf_sorting, pdf_placing, pdf_hybrid
 PDF_DICT = {'sorting': pdf_sorting, 'placing': pdf_placing, 'hybrid': pdf_hybrid}
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--log_dir", type=str)  
@@ -73,12 +66,12 @@ env = load_env(args.env, max_vel, args.n_boxes, args.horizon, args.seed, is_oneb
 ''' set seeds '''
 set_seed(args.seed)
 
-with open(f'{exp_path}/policy.pickle', 'rb') as f:
+with open(f'{exp_path}policy.pickle', 'rb') as f:
     policy = pickle.load(f)
 
 ''' Start Eval and Save Videos '''
 EVAL_NUM = args.eval_num
-if args.eval_mode == 'fullmetric':
+if args.eval_mode == 'full_metric':
     seeds = [args.seed + i*5 for i in range(5)]
     full_metric(env, args.env, exp_path, policy, args.n_boxes, args.log_dir, args.eval_num, recover=(args.recover == 'True'), seeds=seeds)
 elif args.eval_mode == 'analysis':

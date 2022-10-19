@@ -1,35 +1,24 @@
 from re import T
 import numpy as np
 import torch
-from torch import nn
 import argparse
 import random
 import os
 from torch.utils.tensorboard import SummaryWriter
-from torchvision.utils import make_grid, save_image
-from ipdb import set_trace
+from torchvision.utils import make_grid
 import sys
-from torch_geometric.data import Data, Batch
-from torch_geometric.loader import DataLoader
-from torch_geometric.nn import knn_graph, radius_graph
 import functools
-from functools import partial
 from tqdm import trange
 import pickle
-import copy
 
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from room_utils import RewardNormalizer
-from Algorithms.RoomSDE import marginal_prob_std, diffusion_coeff, loss_fn_cond, cond_ode_vel_sampler, score_to_action, cond_ode_vel_sampler
-from Algorithms.RoomSDENet import DualScore, CondScoreModelGNN
-from Algorithms import RoomSAC
-from room_utils import prepro_dynamic_graph, prepro_state, pre_pro_dynamic_vec, prepro_graph_batch, batch_to_data_list, Timer
-
+from Algorithms.RoomSDE import marginal_prob_std, diffusion_coeff, score_to_action
+from Algorithms.RoomSAC import MASAC, ReplayBuffer
+from room_utils import prepro_graph_batch, Timer
 from Envs.RoomArrangement import RLEnvDynamic, SceneSampler
 
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 
 
 class TargetScore:
@@ -57,33 +46,6 @@ class TargetScore:
         else:
             out_score = torch.zeros_like(state_inp).to(device).view(-1, 2)
         return out_score.cpu().numpy() if is_numpy else out_score
-    
-    def sample_goals(self, num_samples, cond_samples, is_batch=False):
-        assert num_samples == len(cond_samples)
-        ''' make data batch '''
-        # cond_samples[0] = (tensor([0.6215]), 
-        # Data(x=[7, 4], edge_index=[2, 42], geo=[7, 2], category=[7, 1]),
-        #  'b146d9b8-b24e-49b2-9b56-bc63b7bd8f50'),
-        # device = cpu
-        cond_samples_ = [(item[0], item[1]) for item in cond_samples]
-        test_batch = prepro_graph_batch(cond_samples_)
-        dual_score = DualScore(tar_score=self.score, sup_score=None)
-        _, final_states = cond_ode_vel_sampler(
-            dual_score,
-            self.marginal_prob_std_fn,
-            self.diffusion_coeff_fn,
-            (test_batch[0], test_batch[1], None),
-            t0=0.01, # -> 1.0?
-            num_steps=500,
-            max_pos_vel=0.6,
-            max_ori_vel=0.6,
-            scale=0.04,
-            is_decay=False,
-            batch_size=num_samples,
-        )
-        data_list = batch_to_data_list(final_states, test_batch)
-        goal_list = [(torch.tensor([data_list[i][0]]), data_list[i][1], cond_samples[i][2]) for i in range(num_samples)]
-        return goal_list
 
 class RewardSampler:
     def __init__(
@@ -140,20 +102,6 @@ class RewardSampler:
 def load_target_score(score_exp, sigma, max_action, hidden_dim, embed_dim):
     tar_path = f'../logs/{score_exp}/score.pt'
 
-    # # init SDE-related params
-    # marginal_prob_std_fn = functools.partial(marginal_prob_std, sigma=sigma)
-
-    # # create models, optimizers, and loss
-    # score = CondScoreModelGNN(
-    #     marginal_prob_std_fn,
-    #     hidden_dim=hidden_dim,
-    #     embed_dim=embed_dim,
-    #     wall_dim=1,
-    #     mode='target',
-    # )
-    # score.load_state_dict(torch.load(tar_path))
-    # score.to(device)
-
     with open(tar_path, 'rb') as f:
         score = pickle.load(f)
 
@@ -171,9 +119,6 @@ def eval_metric(eval_env, eval_policy, reward_func, writer, eval_episodes, eval_
         state, done = eval_env.reset(), False
         cur_vis_states = []
         cur_vis_states.append(state)
-        # ''' take init state image '''
-        # img = eval_env.sim.sim.take_snapshot(512, height=10.0)
-        # imgs.append(img)
         while not done:
             action = eval_policy.select_action(state, sample=False)
             next_state, _, done, infos = eval_env.step(action)
@@ -185,9 +130,6 @@ def eval_metric(eval_env, eval_policy, reward_func, writer, eval_episodes, eval_
         cur_vis_states.append(state)
         room_names.append(eval_env.sim.name)
         vis_states.append(cur_vis_states)
-        # ''' take terminal state image '''
-        # img = eval_env.sim.sim.take_snapshot(512, height=10.0)
-        # imgs.append(img)
     
     episode_reward /= eval_episodes
     episode_similarity_reward /= eval_episodes
@@ -200,11 +142,6 @@ def eval_metric(eval_env, eval_policy, reward_func, writer, eval_episodes, eval_
                         'similarity': episode_similarity_reward},
                         eval_idx)
     writer.add_scalar('Eval/Total', episode_reward, eval_idx)
-    # ''' save terminal imges '''
-    # batch_imgs = np.stack(imgs, axis=0)
-    # ts_imgs = torch.tensor(batch_imgs).permute(0, 3, 1, 2)
-    # grid = make_grid(ts_imgs.float(), padding=2, nrow=2, normalize=True)
-    # writer.add_image(f'Images/proxy_terminal_states', grid, eval_idx)
     return vis_states, room_names
 
 
@@ -310,7 +247,7 @@ if __name__ == "__main__":
     timer = Timer(writer=writer)
 
     ''' Init Buffer '''
-    replay_buffer = RoomSAC.ReplayBuffer(max_size=args.buffer_size, timer=timer)
+    replay_buffer = ReplayBuffer(max_size=args.buffer_size, timer=timer)
 
     reward_normalizer_sim = RewardNormalizer(args.normalize_reward == 'True', writer, name='sim')
     reward_normalizer_col = RewardNormalizer(args.normalize_reward == 'True', writer, name='col')
@@ -339,7 +276,7 @@ if __name__ == "__main__":
         "residual_t0": args.residual_t0,
         "timer": timer,
     }
-    policy = RoomSAC.MASAC(**kwargs)
+    policy = MASAC(**kwargs)
 
     ''' Start Training Episodes '''
     state, done = env.reset(), False

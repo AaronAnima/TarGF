@@ -1,14 +1,10 @@
-import argparse
 import os
 import random
 import time
-from numpy.lib.ufunclike import fix
 import pybullet as p
 import igibson
 import torch
 import numpy as np
-from PIL import Image
-import matplotlib.pyplot as plt
 from ipdb import set_trace
 from tqdm import tqdm
 import pickle
@@ -16,14 +12,9 @@ from gym import spaces
 from igibson.scene_loader import Simulator
 from igibson.scenes.igibson_indoor_scene import InteractiveIndoorScene
 
-import os
 import sys
-from os.path import join as pjoin
-
-BASEPATH = os.path.dirname(__file__)
-sys.path.insert(0, pjoin(BASEPATH, '..'))
-# sys.path.insert(0, pjoin(BASEPATH, '..', '..'))
-
+import os
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from Envs.RoomCONSTANTS import bedroom_type_mapping, bedroom_typeidx_mapping, livingroom_type_mapping, livingroom_typeidx_mapping
 from room_utils import GraphDataset4RL, split_dataset
 

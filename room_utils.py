@@ -53,9 +53,6 @@ class RewardNormalizer(object):
     
     def get_normalized_reward(self, rewards):
         rewards_norm = (rewards - self.reward_mean) / (self.reward_std + 1e-8)
-        # if self.name == 'sim':
-        #     print(rewards_norm.min())
-        #     print(rewards_norm.max())
         return rewards_norm
     
     def update_writer(self):
@@ -63,8 +60,6 @@ class RewardNormalizer(object):
         self.writer.add_scalar(f'Episode_rewards/RunningStd_{self.name}', np.mean(self.reward_std), self.num_steps)
 
     def update(self, reward, is_eval=False):
-        # if self.name == 'sim':
-        #     set_trace()
         if not is_eval and self.is_norm:
             if type(reward) is np.ndarray:
                 for item in reward:
@@ -78,47 +73,6 @@ class RewardNormalizer(object):
         return reward
 
 
-# def get_act(states, dims=2048, device='cuda'):
-#     block_idx = InceptionV3.BLOCK_INDEX_BY_DIM[dims]
-#     model = InceptionV3([block_idx]).to(device)
-#     act = model(torch.tensor(states, device=device, dtype=torch.float32))[0].squeeze(3).squeeze(2).cpu().numpy()
-#     return act
-
-
-# def calc_coverage_from_act(gt_act, gen_act):
-#     gt_states_array = np.array(gt_act)
-#     states_array = np.array(gen_act)
-#     coverage = np.mean(np.min(np.linalg.norm(np.expand_dims(gt_states_array, axis=1) - np.expand_dims(states_array, axis=0), axis=-1), axis = -1))
-#     return coverage
-
-
-# def calc_coverage_from_imgs(gt_imgs, gen_imgs, dims=2048, device='cuda'):
-#     gt_act = get_act(gt_imgs, dims, device)
-#     gen_act = get_act(gen_imgs, dims, device)
-#     coverage = calc_coverage_from_act(gt_act, gen_act)
-#     return coverage
-
-
-# def fid_statistics(act):
-#     mu = np.mean(act, axis=0)
-#     sigma = np.cov(act, rowvar=False)
-#     return mu, sigma
-
-
-# def calc_fid_from_act(gt_act, gen_act):
-#     m1, s1 = fid_statistics(gt_act)
-#     m2, s2 = fid_statistics(gen_act)
-#     fid_value = calculate_frechet_distance(m1, s1, m2, s2)
-#     return fid_value
-
-
-# def calc_fid_from_imgs(gt_imgs, gen_imgs, dims=2048, device='cuda'):
-#     gt_act = get_act(gt_imgs, dims, device)
-#     gen_act = get_act(gen_imgs, dims, device)
-#     fid_value = calc_fid_from_act(gt_act, gen_act)
-#     return fid_value
-
-
 def chamfer_dist(x, y, metric='l2'):
     x = x.reshape(-1, 2)
     y = y.reshape(-1, 2)
@@ -130,25 +84,10 @@ def chamfer_dist(x, y, metric='l2'):
     dist = np.mean(min_y_to_x) + np.mean(min_x_to_y)
     return dist
 
-# def my_dist(state1, state2):
-#     state1 = state1[state1[:, -1].argsort()]
-#     state2 = state2[state2[:, -1].argsort()]
-#     objs_by_cat_list1 = np.split(state1[:, :-1], np.unique(state1[:, -1], return_index=True)[1][1:])
-#     objs_by_cat_list2 = np.split(state2[:, :-1], np.unique(state2[:, -1], return_index=True)[1][1:])
-#     dist = 0
-#     for objs_by_cat1, objs_by_cat2 in zip(objs_by_cat_list1, objs_by_cat_list2):
-#         # 目前只考虑了pos dist
-#         pos_dist = chamfer_dist(objs_by_cat1[:, :2], objs_by_cat2[:, :2])
-#         dist += pos_dist
-#     return dist
-
 def my_dist(state1, state2):
     # state1: [num_obj, 7]
     # state2: [num_obj, 7]
-    # pos, ori normed to [-1, 1]
-    # return np.sum((state1[:, 0:2] - state2[:, 0:2])**2) + np.sum(1 - state1[:, 2:4] * state2[:, 2:4])
     return np.sum((state1[:, 0:2] - state2[:, 0:2])**2)
-    # return np.sum(1 - state1[:, 2:4] * state2[:, 2:4])
 
 def calc_coverage(room_name_to_gt_states, room_name_to_states):
     res = []
@@ -186,7 +125,6 @@ def save_video(env, states, save_path, simulation=False, fps = 50, render_size =
     # state: (60, )
     imgs = []
     for _, state in tqdm(enumerate(states), desc='Saving video'):
-        # set_trace()
         env.set_state(state)
         img = env.render(render_size)
         imgs.append(img)
@@ -260,7 +198,6 @@ class GraphDataset4RL:
                 ptr += 1
         self.state_dim = 4
         self.size_dim = 2
-        # self.wall_dim = 6
         self.scale = base_noise_scale
         self.histogram_path = f'../ExpertDatasets/{data_name}/histogram.png'
 
@@ -271,12 +208,10 @@ class GraphDataset4RL:
     def draw_histogram(self):
         plt.figure(figsize=(10,10))
         histogram = []
-        # set_trace()
         for files in self.folders_path:
             cur_folder_path = f'{self.data_root}/{files}/'
             files_list = os.listdir(cur_folder_path)
             histogram.append(len(files_list) // 2)
-            # print(len(files_list)//2)
         histogram = np.array(histogram)
         plt.hist(histogram, bins=4)
         plt.title(f'Total room num: {len(self.folders_path)}')
@@ -318,7 +253,6 @@ class GraphDataset:
 
         self.state_dim = 4
         self.size_dim = 2
-        # self.wall_dim = 6
         self.scale = base_noise_scale
         self.histogram_path = f'../ExpertDatasets/{data_name}/histogram.png'
 
@@ -329,12 +263,10 @@ class GraphDataset:
     def draw_histogram(self):
         plt.figure(figsize=(10, 10))
         histogram = []
-        # set_trace()
         for files in self.folders_path:
             cur_folder_path = f'{self.data_root}/{files}/'
             files_list = os.listdir(cur_folder_path)
             histogram.append(len(files_list) // 2)
-            # print(len(files_list)//2)
         histogram = np.array(histogram)
         plt.hist(histogram, bins=4)
         plt.title(f'Total room num: {len(self.folders_path)}')
@@ -352,11 +284,7 @@ class GraphDataset:
         wall_feat = torch.tensor(wall_feat).float()
         obj_batch = torch.tensor(obj_batch)
 
-        # edge_wall = knn_graph(wall_feat, wall_feat.shape[0]-1)
-        # edge_obj = knn_graph(obj_batch[:, 0:2], obj_batch.shape[0]//2+1)
         edge_obj = knn_graph(obj_batch[:, 0:2], obj_batch.shape[0] - 1)  # fully connected
-        # data_wall = Data(x=wall_batch.float(),
-        #                  edge_index=edge_wall)
         data_obj = Data(x=obj_batch[:, 0:self.state_dim].float(),
                         geo=obj_batch[:, self.state_dim:self.state_dim + self.size_dim].float(),
                         category=obj_batch[:, -1:].long(),
@@ -406,7 +334,6 @@ def prepro_graph_batch(states):
         states = [prepro_dynamic_graph(state) for state in states]
     
     wall_batch = torch.tensor([state[0] for state in states]).unsqueeze(1).to(device)
-    # obj_batch = Batch.from_data_list([state[1] for state in states]).to(device)
     samples_batch = []
     ptr = [0]
     x = []
@@ -433,9 +360,6 @@ def prepro_graph_batch(states):
     return wall_batch, obj_batch
 
 def batch_to_data_list(my_graph_batch, ref_batch):
-    # my_graph_batch: [1, 1132, 4]
-    # ref_batch[0]: [256, 1]
-    # ref_batch[1]: Data(x=[1132, 4], edge_index=[2, 4280], batch=[1132], ptr=[257], geo=[1132, 2], category=[1132, 1])
     wall_feats = [item[0].numpy() for item in ref_batch[0].cpu()]
     obj_batch_large = torch.cat([my_graph_batch[0].cpu(), ref_batch[1].geo.cpu(), ref_batch[1].category.cpu()], dim=-1).cpu().numpy()
     ptr = ref_batch[1].ptr

@@ -1,10 +1,7 @@
 import os
 import sys
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-
 
 import numpy as np
-from scipy.spatial import distance_matrix
 from math import *
 from tqdm import tqdm, trange
 import functools
@@ -14,19 +11,14 @@ import argparse
 import pickle
 from collections import deque
 
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from Algorithms.ORCA.pyorca import Agent, orca
 from Algorithms.ORCA.RVO import compute_V_des
 from Algorithms.ORCA.RVO import compute_V_des
-from utils import save_video
-from Runners.BallSAC import load_target_score
-from Runners.BallEvalBase import eval_trajs, merge_metrics_dicts
-
-
-from utils import pdf_sorting, pdf_placing, pdf_hybrid, pdf_sorting6, pdf_circlerect
-
-
-from ipdb import set_trace
-
+from Runners.Train.BallSAC import load_target_score
+from Runners.Eval.BallEvalBase import eval_trajs
+from ball_utils import pdf_sorting, pdf_placing, pdf_hybrid, save_video
 from Envs.SortingBall import RLSorting
 from Envs.PlacingBall import RLPlacing
 from Envs.HybridBall import RLHybrid
@@ -260,18 +252,11 @@ def debug_orca(eval_num):
         # save_video(env, states_np, save_path=f'{exp_path}test_video_{episode_idx}', fps=len(states_np) // 5, suffix='mp4')
         save_video(env, states_np, save_path=f'{exp_path}test_video_{episode_idx}', fps=len(states_np) // 5, suffix='gif')
 
-
-# def eval_orca(seeds=[0, 5, 10, 15, 20]):
-# def eval_orca(seeds=[0, 5]):
 def eval_orca(seeds=[0]):
     print('----- Start Collecting Trajs -----')
     trajs = []
     trajs_path = exp_path+f'trajs_{args.num_objs}_{args.eval_num}.pickle'
     metrics_path = exp_path+f'metrics_{args.num_objs}_{args.eval_num}.pickle'
-    # trajs_path = exp_path+f'{len(seeds)}seeds_trajs_{args.num_objs}_{args.eval_num}.pickle'
-    # metrics_path = exp_path+f'{len(seeds)}seeds_metrics_{args.num_objs}_{args.eval_num}.pickle'
-    # trajs_path = exp_path+f'{len(seeds)}seeds_trajs_{args.num_objs}_{args.eval_num}_{env.max_episode_len}.pickle'
-    # metrics_path = exp_path+f'{len(seeds)}seeds_metrics_{args.num_objs}_{args.eval_num}_{env.max_episode_len}.pickle'
     
     if os.path.exists(trajs_path) and (args.recover == 'True'):
         print('----- Find Existing Trajs!! -----')

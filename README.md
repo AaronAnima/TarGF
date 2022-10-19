@@ -76,25 +76,25 @@ We assign an argument `--log_dir $log_dir` for each experiment. The in-process r
 
 For *Circling*:
 ```
-python Runners/BallSDE.py --log_dir Circling_Score --data_name Circling_Examples --env placing
+python Runners/Train/BallSDE.py --log_dir Circling_Score --data_name Circling_Examples --env placing
 ```
 
 
 For *Clustering*:
 ```
-python Runners/BallSDE.py --log_dir Clustering_Score --data_name Clustering_Examples --env sorting
+python Runners/Train/BallSDE.py --log_dir Clustering_Score --data_name Clustering_Examples --env sorting
 ```
 
 
 For *Circling+Clustering*:
 ```
-python Runners/BallSDE.py --log_dir Hybrid_Score --data_name Hybrid_Examples --env hybrid
+python Runners/Train/BallSDE.py --log_dir Hybrid_Score --data_name Hybrid_Examples --env hybrid
 ```
 
 
 For *Room Rearrangement*:
 ```
-python Runners/RoomSDE.py --log_dir Room_Score --data_name UnShuffledRoomsMeta
+python Runners/Train/RoomSDE.py --log_dir Room_Score --data_name UnShuffledRoomsMeta
 ```
 
 You can also visualise the in-process results via TensorBoard:
@@ -108,25 +108,25 @@ where `${log_dir}` denotes the argument following `--log_dir`.
 
 For *Circling*:
 ```
-python Runners/BallSAC.py --log_dir Circling_SAC --env placing --lambda_col 3.0 --lambda_sim 1.0 --score_exp Circling_Score --residual_t0 0.01 
+python Runners/Train/BallSAC.py --log_dir Circling_SAC --env placing --lambda_col 3.0 --lambda_sim 1.0 --score_exp Circling_Score --residual_t0 0.01 
 ```
 
 
 For *Clustering*:
 ```
-python Runners/BallSAC.py --log_dir Clustering_SAC --env sorting --lambda_col 5.0 --lambda_sim 1.0 --score_exp Clustering_Score --residual_t0 0.01 
+python Runners/Train/BallSAC.py --log_dir Clustering_SAC --env sorting --lambda_col 5.0 --lambda_sim 1.0 --score_exp Clustering_Score --residual_t0 0.01 
 ```
 
 
 For *Circling+Clustering*:
 ```
-python Runners/BallSAC.py --log_dir Hybrid_SAC --env hybrid --lambda_col 5.0 --lambda_sim 1.0 --score_exp Hybrid_Score --residual_t0 0.01 
+python Runners/Train/BallSAC.py --log_dir Hybrid_SAC --env hybrid --lambda_col 5.0 --lambda_sim 1.0 --score_exp Hybrid_Score --residual_t0 0.01 
 ```
 
 
 For *Room Rearrangement*:
 ```
-python Runners/RoomSAC.py --log_dir Room_SAC --score_exp Room_Score
+python Runners/Train/RoomSAC.py --log_dir Room_SAC --score_exp Room_Score
 ```
 
 
@@ -141,19 +141,19 @@ We also assign an argument `--log_dir $log_dir` for each experiment. The metrics
 For *Circling*:
 
 ```
-python Runners/BallORCA.py --log_dir Circling_ORCA --env placing --score_exp Circling_Score --mode debug --residual_t0 0.01 --is_decay False
+python Runners/Eval/BallEvalORCA.py --log_dir Circling_ORCA --env placing --score_exp Circling_Score --mode debug --residual_t0 0.01 --is_decay False
 ```
 
 
 For *Clustering*:
 ```
-python Runners/BallORCA.py --log_dir Clustering_ORCA --env sorting --score_exp Clustering_Score --mode eval --residual_t0 0.01 --is_decay False
+python Runners/Eval/BallORCA.py --log_dir Clustering_ORCA --env sorting --score_exp Clustering_Score --mode eval --residual_t0 0.01 --is_decay False
 ```
 
 
 For *Circling+Clustering*:
 ```
-python Runners/BallORCA.py --log_dir Hybrid_ORCA --env hybrid --score_exp Hybrid_Score --mode eval --residual_t0 0.01 --is_decay False
+python Runners/Eval/BallORCA.py --log_dir Hybrid_ORCA --env hybrid --score_exp Hybrid_Score --mode eval --residual_t0 0.01 --is_decay False
 ```
 
 To obtain qualitative results, change the `--mode eval` to `--mode debug`.
@@ -166,25 +166,25 @@ The visualisations will be saved in `../logs/${log_dir}`
 
 For *Circling*:
 ```
-python Runners/BallEvalSAC.py --log_dir Circling_SAC --env placing --score_exp Circling_Score --eval_mode full_metric --residual_t0 0.01
+python Runners/Eval/BallEvalSAC.py --log_dir Circling_SAC --env placing --score_exp Circling_Score --eval_mode full_metric --residual_t0 0.01
 ```
 
 
 For *Clustering*:
 ```
-python Runners/BallEvalSAC.py --log_dir Clustering_SAC --env sorting --score_exp Clustering_Score --eval_mode full_metric --residual_t0 0.01
+python Runners/Eval/BallEvalSAC.py --log_dir Clustering_SAC --env sorting --score_exp Clustering_Score --eval_mode full_metric --residual_t0 0.01
 ```
 
 
 For *Circling+Clustering*:
 ```
-python Runners/BallEvalSAC.py --log_dir Hybrid_SAC --env hybrid --score_exp Hybrid_Score --eval_mode full_metric --residual_t0 0.01
+python Runners/Eval/BallEvalSAC.py --log_dir Hybrid_SAC --env hybrid --score_exp Hybrid_Score --eval_mode full_metric --residual_t0 0.01
 ```
 
 
 For *Room Rearrangement*:
 ```
-python Runners/RoomEvalSAC.py --log_dir Room_SAC --score_exp Room_Score --save_video True
+python Runners/Eval/RoomEvalSAC.py --log_dir Room_SAC --score_exp Room_Score --save_video True
 ```
 
 To obtain qualitative results of *Ball Rearrangmenet*, change the `--eval_mode full_metric` to `--eval_mode analysis`.

@@ -1,16 +1,9 @@
-import copy
 import math
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ipdb import set_trace
-
-from torch_geometric.nn import knn_graph
-from torch_geometric.loader import DataLoader
-from torch_geometric.data import Data, Batch
-from torch_geometric.nn import GCNConv, EdgeConv, GINConv, GATConv
-from torch_scatter import scatter_max, scatter_mean
+from torch_geometric.nn import EdgeConv
 from torch import distributions as pyd
 
 
@@ -125,7 +118,7 @@ class Actor(nn.Module):
         log_std = torch.tanh(log_std)
         log_std_min, log_std_max = self.log_std_bounds
         log_std = log_std_min + 0.5 * (log_std_max - log_std_min) * (log_std + 1)
-        std = log_std.exp()  # [bs*30, 2] -> [bs, 60]
+        std = log_std.exp()  
 
         # mu: [num_nodes, 4]
         mu = self.max_action * torch.tanh(mu)

@@ -1,17 +1,13 @@
-import math
-import copy
 import functools
 
 import numpy as np
-from scipy import integrate
-from ipdb import set_trace
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from torch_geometric.nn import EdgeConv
-from torch_scatter import scatter_sum
+from Algorithms.RoomSDE import marginal_prob_std
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -34,10 +30,6 @@ class CondScoreModelGNN(nn.Module):
                  mode='target'):
         super(CondScoreModelGNN, self).__init__()
         self.marginal_prob_std = marginal_prob_std_func
-        # # M12D6_Bedroom_108000_support_sparseGraph_singleroom
-        # mode = 'target'
-        # hidden_dim = 128
-        # embed_dim = hidden_dim//4
         hidden_dim = hidden_dim
         embed_dim = embed_dim
         self.mode = mode
@@ -124,7 +116,7 @@ class CondScoreModelGNN(nn.Module):
         x = x / (self.marginal_prob_std(t) + 1e-7)
         return x
 
-class DualScore:
+class ScoreWrapper:
     def __init__(self, tar_score=None, sup_score=None, sup_t0=0.001):
         self.tar = tar_score
         self.sup = sup_score

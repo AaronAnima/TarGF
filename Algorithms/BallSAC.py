@@ -1,20 +1,13 @@
+import os
+import sys
 import copy
-import math
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-from ipdb import set_trace
 from collections import deque
 
-from torch_geometric.nn import knn_graph
-from torch_geometric.loader import DataLoader
-from torch_geometric.data import Data, Batch
-from torch_geometric.nn import GCNConv, EdgeConv
-from torch_scatter import scatter_max, scatter_mean
-from torch import distributions as pyd
-
-from Algorithms.BallSACNet import ActorOld, CriticOld, ActorTanh, CriticTanh
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+from Networks.BallSACNet import ActorTanh, CriticTanh
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -40,11 +33,7 @@ class MASAC(object):
             learnable_temperature=True,
             model_type='tanh',
     ):
-        actor_class = {'old': ActorOld, 'tanh': ActorTanh}
-        critic_class = {'old': CriticOld, 'tanh': CriticTanh}
-        actor_class = actor_class[model_type]
-        critic_class = critic_class[model_type]
-        self.actor = actor_class(
+        self.actor = ActorTanh(
             log_std_bounds=(-5, 2),
             max_action=max_action,
             target_score=target_score,
@@ -57,7 +46,7 @@ class MASAC(object):
         ).to(device)
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=3e-4, betas=(0.9, 0.999))
 
-        self.critic = critic_class(
+        self.critic = CriticTanh(
             target_score=target_score,
             num_boxes=num_boxes,
             knn=knn_critic,
@@ -95,12 +84,9 @@ class MASAC(object):
 
     def select_action(self, state, sample=False):
         # return [action_dim, ]
-        # with torch.no_grad():
         state = torch.FloatTensor(state.reshape(1, -1)).to(device)
         dist = self.actor(state)
-        # set_trace()
         action = dist.sample() if sample else dist.mean
-        # set_trace()
         return action.clamp(-self.max_action, self.max_action).detach().cpu().numpy().flatten()
 
     def train(self, replay_buffer, batch_size=256):
@@ -108,7 +94,6 @@ class MASAC(object):
 
         # Sample replay buffer
         state, action, next_state, reward, not_done = replay_buffer.sample(batch_size)
-        # set_trace() # reward: [bs, 30]
         ''' update critic '''
         next_dist = self.actor(next_state)
         # Select action according to policy and add clipped noise
@@ -204,26 +189,11 @@ class ReplayBuffer(object):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def clear_queue(self):
-        # for _ in range(self.queue_len):
-        #     self.queue.append(0)
         self.queue.clear()
-
-    # def get_ema(self):
-    #     reward = 0
-    #     for idx, item in enumerate(self.queue):
-    #         if idx == 0:
-    #             reward = item
-    #         else:
-    #             reward = reward*(1-self.mar) + item * self.mar
-    #     return reward
 
     def get_ema(self):
         reward = 0
         for idx, item in enumerate(self.queue):
-            # if idx == 0:
-            #     reward = item
-            # else:
-            #     reward = reward*(1-self.mar) + item * self.mar
             reward += item / len(self.queue)
         return reward
 

@@ -1,21 +1,17 @@
 import os
 import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 import random
 import pickle
 from math import *
-import cv2
 
 import numpy as np
 
 import torch
 from tqdm import tqdm, trange
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from Envs.RoomArrangement import RLEnvDynamic, SceneSampler
 from room_utils import calc_coverage, exists_or_mkdir, images_to_video
-
-from ipdb import set_trace
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def get_max_vel():

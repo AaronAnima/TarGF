@@ -1,17 +1,11 @@
 import os
 import sys
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 import argparse
-
 import torch
 import pickle
 
-from Runners.RoomSAC import load_target_score
-from Runners.RoomEvalBase import get_max_vel, load_test_env, set_seed, eval_policy
-from Runners.RoomSAC import TargetScore
-
-from ipdb import set_trace
-
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+from Runners.Eval.RoomEvalBase import get_max_vel, load_test_env, eval_policy
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

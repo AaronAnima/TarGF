@@ -1,25 +1,20 @@
 import numpy as np
 import torch
-from torch import nn
 import argparse
 import os
 from torch.utils.tensorboard import SummaryWriter
-from torchvision.utils import make_grid, save_image
-from ipdb import set_trace
+from torchvision.utils import make_grid
 import sys
-from torch_geometric.data import Data, Batch
-from torch_geometric.nn import knn_graph, radius_graph
+from torch_geometric.data import Data
+from torch_geometric.nn import knn_graph
 import functools
-from functools import partial
 from tqdm import trange
 import pickle
-import copy
 
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from utils import pdf_sorting, pdf_placing, pdf_hybrid, diversity_score, RewardNormalizer
-from Algorithms.BallSDE import ScoreModelGNN, marginal_prob_std, diffusion_coeff, ode_likelihood, pc_sampler_state, ode_sampler, Euler_Maruyama_sampler, ScoreNet
-from Algorithms import BallSAC
-
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+from ball_utils import pdf_sorting, pdf_placing, pdf_hybrid, diversity_score, RewardNormalizer
+from Algorithms.BallSDE import marginal_prob_std, diffusion_coeff, pc_sampler_state, ode_sampler, Euler_Maruyama_sampler
+from Algorithms.BallSAC import MASAC, ReplayBuffer
 from Envs.SortingBall import RLSorting
 from Envs.PlacingBall import RLPlacing
 from Envs.HybridBall import RLHybrid
@@ -80,7 +75,6 @@ class TargetScore:
                     out_score = out_score
             else:
                 state_ts = torch.FloatTensor(state_inp).to(device).unsqueeze(0)
-                # state_ts = 2*state_ts/255. - 1 # [0., 255] -> [-1, 1]
                 assert -1 <= torch.min(state_ts) <= torch.max(state_ts) <= 1
                 t = torch.FloatTensor([t0]).to(device)
                 out_score = self.score(state_ts, t)
@@ -88,24 +82,6 @@ class TargetScore:
         else:
             out_score = torch.zeros_like(state_inp).to(device).view(-1, 2)
         return out_score.cpu().numpy() if is_numpy else out_score
-
-    def sample_goals(self, num_samples, is_batch=False):
-        # _, final_states = self.sampler(
-        #     self.score, 
-        #     self.marginal_prob_std_fn, 
-        #     self.diffusion_coeff_fn, 
-        #     n_box=self.num_objs, 
-        #     batch_size=num_samples,
-        #     t0=1.0,
-        #     n=3*self.num_objs,
-        # )
-        final_states = self.graphvae.sample(num_samples, device)
-        # final_states = final_states.detach().cpu().numpy()
-        if is_batch:
-            final_states = final_states.reshape(-1, self.num_objs*6)
-        else:
-            final_states = final_states.flatten()
-        return final_states
 
 
 class RewardSampler:
@@ -145,13 +121,10 @@ class RewardSampler:
         collision_reward = self.get_collision_reward(info)
         similarity_reward = self.get_similarity_reward(actions, info, cur_state, new_state)
 
-        # ''' update sim, instead of total reward '''
         similarity_reward = self.normalizer_sim.update(similarity_reward, is_eval=is_eval)
         collision_reward = self.normalizer_col.update(collision_reward, is_eval=is_eval)
         
         total_reward = self.lambda_sim*similarity_reward + self.lambda_col*collision_reward
-        # ''' update total, instead of sim reward '''
-        # total_reward = self.normalizer.update(total_reward, is_eval=is_eval)
 
         return total_reward, similarity_reward, collision_reward
 
@@ -188,11 +161,6 @@ class RewardSampler:
             init_sim = np.log(pdf(init_state, self.num_objs))
             similarity_reward = cur_sim - prev_sim + (200 + init_sim)/info['max_episode_len']
             similarity_reward *= (info['cur_steps'] % self.reward_freq == 0)
-        # elif self.reward_mode == 'density':
-        #     similarity_reward = np.zeros((self.num_objs*3))
-        #     if info['is_done']:
-        #         _, nll = ode_likelihood(cur_state, score_target, marginal_prob_std_fn, diffusion_coeff_fn)
-        #         similarity_reward = -nll.cpu().repeat(self.num_objs*3).numpy()  # [centralized_density] * num_balls
         elif self.reward_mode == 'densityIncre':
             cur_score = self.target_score.get_score(cur_state, t0=self.t0, is_norm=False).reshape(-1)
             delta_state = new_state - cur_state
@@ -234,41 +202,21 @@ def eval_metric(eval_env, env_name, policy, n_box, reward_func, writer, eval_epi
     episode_delta_likelihoods = []
     episode_avg_collisions = []
     last_states = []
-    avg_reward = 0.
-    avg_reward_similarity = 0
-    avg_reward_collision = 0
     pdf = PDF_DICT[env_name]
-    for idx in trange(eval_episodes):
+    for _ in trange(eval_episodes):
         state, done = eval_env.reset(is_random=True), False
         avg_collision = 0
         delta_likelihoods = -np.log(pdf(state, n_box))
         while not done:
             action = policy.select_action(np.array(state), sample=False)
-            # action = env.sample_action()
             state, _, done, infos = eval_env.step(action, centralized=False)
             collisions = infos['collision_num']
             avg_collision += np.sum(collisions)
-            # reward, reward_similarity, reward_collision = reward_func.get_reward(actions=action, info=infos, cur_state=state, new_state=next_state, is_eval=True)
-            # avg_reward_similarity += reward_similarity.sum()
-            # avg_reward_collision += reward_collision.sum()
-            # avg_reward += reward.sum()
         last_states.append(state)
         avg_collision /= horizon
         delta_likelihoods += np.log(pdf(state, n_box))
         episode_delta_likelihoods.append(delta_likelihoods)
         episode_avg_collisions.append(avg_collision)
-        # if (idx+1) % 10 == 0:
-        #     print('----Delta Likelihood: {:.2f} +- {:.2f}'.format(np.mean(episode_delta_likelihoods), np.std(episode_delta_likelihoods)))
-        #     print('----Avg Collisions: {:.2f} +- {:.2f}'.format(np.mean(episode_avg_collisions), np.std(episode_avg_collisions)))
-        #     print('----Diversity Score: {:.2f}'.format(diversity_score(last_states)))
-    # avg_reward, avg_reward_collision, avg_reward_similarity = \
-    #     avg_reward/eval_episodes, avg_reward_collision/eval_episodes, avg_reward_similarity/eval_episodes
-    # writer.add_scalars('Eval/Compare',
-    #                    {'total': avg_reward,
-    #                     'collision': avg_reward_collision,
-    #                     'similarity': avg_reward_similarity*n_box*3},
-    #                    episode_num + 1)
-    # writer.add_scalar('Eval/Total',avg_reward, episode_num + 1)
 
     # Declaration
     mu_dl, std_dl = np.mean(episode_delta_likelihoods), np.std(episode_delta_likelihoods)
@@ -283,12 +231,6 @@ def eval_metric(eval_env, env_name, policy, n_box, reward_func, writer, eval_epi
 def load_target_score(score_exp, network_mode, num_objs, max_action, is_state=True):
     diffusion_coeff_func = functools.partial(diffusion_coeff, sigma=25)
     tar_path = f'../logs/{score_exp}/score.pt'
-    # marginal_prob_std_fn = functools.partial(marginal_prob_std, sigma=25)
-    # if is_state:
-    #     score_target = ScoreModelGNN(marginal_prob_std_fn, n_box=num_objs, mode=network_mode, device=device, hidden_dim=64, embed_dim=32)
-    # else:
-    #     score_target = ScoreNet(marginal_prob_std=marginal_prob_std_fn)
-    # score_target.load_state_dict(torch.load(tar_path))
     with open(tar_path, 'rb') as f:
         score_target = pickle.load(f)
     return TargetScore(score_target.to(device), num_objs, max_action, is_state=is_state), diffusion_coeff_func
@@ -412,14 +354,14 @@ if __name__ == "__main__":
         "embed_dim": args.embed_dim,
         "residual_t0": args.residual_t0,
     }
-    policy = BallSAC.MASAC(**kwargs)
+    policy = MASAC(**kwargs)
     if not args.load_exp == 'None':
         policy.load(f"../logs/{args.load_exp}/")
 
     ''' Init Buffer '''
     state_dim = 3*2*args.n_boxes
     action_dim = 3*2*args.n_boxes
-    replay_buffer = BallSAC.ReplayBuffer(state_dim, action_dim,
+    replay_buffer = ReplayBuffer(state_dim, action_dim,
                                        n_nodes=args.n_boxes*3,
                                        centralized=False,
                                        is_ema=args.is_ema=='True', mar=args.mar, queue_len=args.queue_len)
@@ -516,7 +458,6 @@ if __name__ == "__main__":
                     policy.writer = None
                     pickle.dump(policy, f)
                     policy.writer = writer
-                # policy.save(f"{last_ckpt_path}")
     
 
                 print('------Now Start Eval!------')
@@ -538,107 +479,8 @@ if __name__ == "__main__":
                     policy.save(f"{best_ckpt_path}")
 
                 visualize_states(np.stack(infos['Results'][0:eval_col**2]), env, writer, episode_num, eval_col, suffix='episode last state')
-                # eval_policy(policy, args.seed, writer, episode_num, reward_func=reward_func, reward_mode=args.reward_mode)
                 print(f'log_dir: {args.log_dir}')
 
             # as train and eval share the same env
             state, done = env.reset(is_random=True), False
 
-
-class GTTargetScore(nn.Module):
-    def __init__(self, num_objs, env_type='sorting'):
-        super(GTTargetScore, self).__init__()
-        self.scale = 0.05
-        self.bound = 0.3
-        self.r = 0.025
-        self.num_objs = num_objs
-        self.env_type = env_type
-        self.likelihood_funcs = {
-            'sorting': self.likelihood_sorting,
-            'placing': self.likelihood_placing,
-            'hybrid': self.likelihood_hybrid,
-        }
-        ''' For Sorting '''
-        self.centers = []
-        bases = np.array(list(range(3))) * (2 * np.pi) / 3
-        coins = [0, 1]
-        delta = [-2 * np.pi / 3, 2 * np.pi / 3]
-        radius = 0.18
-        for base in bases:
-            for coin in coins:
-                theta_red = base
-                theta_green = theta_red + delta[coin]
-                theta_blue = theta_red + delta[1 - coin]
-                red_center = radius * np.array([np.cos(theta_red), np.sin(theta_red)])
-                green_center = radius * np.array([np.cos(theta_green), np.sin(theta_green)])
-                blue_center = radius * np.array([np.cos(theta_blue), np.sin(theta_blue)])
-                cur_center = np.array([red_center]*num_objs + [green_center]*num_objs + [blue_center]*num_objs)
-                self.centers.append(torch.tensor(cur_center).view(-1).to(device))
-
-    def pdf_sorting(self, data, center):
-        # data: [bs, dim], center:[num_objs*3, 2]
-        # set_trace()
-        bs = data.shape[0]
-        z = (data - center.repeat(bs, 1))/self.scale
-        densities = torch.exp(-z**2/2)/torch.sqrt(torch.tensor(2*np.pi, device=device))
-        # log_densities = torch.log(densities)
-        return torch.prod(densities, dim=-1)
-
-    def likelihood_sorting(self, inp_states):
-        # # inp_states: [bs, dim]
-        # states_ts = torch.tensor(inp_states).to(device)
-        # states_ts *= self.bound - self.r
-        # total_likelihood = 0
-        # for center in self.centers:
-        #     total_likelihood += self.pdf_sorting(states_ts, center)
-        # total_likelihood /= len(self.centers)
-        # return np.log(total_likelihood.cpu().numpy())
-        likelihoods = []
-        for inp_state in inp_states:
-            likelihoods.append(np.log(pdf_sorting(inp_state, self.num_objs)+1e-300)) # 放爆nan
-        return np.array(likelihoods)
-
-    @staticmethod
-    def likelihood_placing(inp_states):
-        # bs = np.prod(inp_states.shape)//(self.num_objs*3*2)
-        # positions = inp_states.reshape(bs, -1, 2)
-        # radius_std = np.std(np.sqrt(np.sum(positions**2, axis=-1)), axis=-1)
-        # theta_std = np.std(np.arctan2(positions[:, :, 1], positions[:, :, 0]), axis=-1) # theta = atan2(y, x)
-        # return -theta_std*radius_std
-        likelihoods = []
-        for inp_state in inp_states:
-            likelihoods.append(np.log(pdf_placing(inp_state)))
-        return np.array(likelihoods)
-        # return np.log(pdf_sorting(np.stack(inp_states), self.num_objs))
-
-    @staticmethod
-    def likelihood_hybrid(inp_states):
-        # bs = np.prod(inp_states.shape)//(self.num_objs*3*2)
-        # positions = inp_states.reshape(bs, -1, 2)
-        # radius_std = np.std(np.sqrt(np.sum(positions**2, axis=-1)), axis=-1)
-        # theta_std = np.std(np.arctan2(positions[:, :, 1], positions[:, :, 0]), axis=-1) # theta = atan2(y, x)
-        # return -theta_std*radius_std
-        likelihoods = []
-        for inp_state in inp_states:
-            likelihoods.append(np.log(pdf_hybrid(inp_state)))
-        return np.array(likelihoods)
-
-    def total_likelihood(self, inp_states):
-        likelihood_func = self.likelihood_funcs[self.env_type]
-        return likelihood_func(inp_states)
-
-    def forward(self, inp_data, _, __):
-        # inp_data:
-        source_ts = inp_data.x.detach().clone().cpu().numpy()
-        inp_var = torch.tensor(source_ts, requires_grad=True, device=device)
-        h = inp_var * (self.bound - self.r)
-        h = h.view(-1, self.num_objs*3, 2)
-        # inp_var: [bs, n, 2]
-        # centers: [bs, n, 2] * 6
-        total_likelihood = 0
-        for center in self.centers:
-            total_likelihood += self.calc_likelihood(h, center)
-        total_likelihood /= len(self.centers)
-        total_likelihood.backward()
-        score = inp_var.grad
-        return score.detach()

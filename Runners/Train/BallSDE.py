@@ -1,40 +1,32 @@
-from numpy import random
-import pybullet as p
-import pybullet_data
-from ipdb import set_trace
 import os
 import sys
 import time
-import math
-import copy
 import pickle
 import cv2
 import numpy as np
 from tqdm import tqdm, trange
-from collections import deque
 import argparse
 import functools
 from torch.utils.tensorboard import SummaryWriter
 
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
-from torchvision.utils import make_grid, save_image
 from torch.utils.data import Dataset
+from torchvision.utils import make_grid
 import torchvision.transforms as transforms
 
 from torch_geometric.nn import knn_graph
 from torch_geometric.loader import DataLoader
 from torch_geometric.data import Data
 
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from utils import exists_or_mkdir, string2bool, images_to_video, save_video
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+from ball_utils import exists_or_mkdir, save_video
 from Envs.SortingBall import RLSorting
 from Envs.PlacingBall import RLPlacing
 from Envs.HybridBall import RLHybrid
 ENV_DICT = {'sorting': RLSorting, 'placing': RLPlacing, 'hybrid': RLHybrid}
-from Algorithms.BallSDE import ScoreModelGNN, marginal_prob_std, diffusion_coeff, loss_fn_state, loss_fn_img, ode_sampler, ScoreNet, pc_sampler_img, pc_sampler_state
+from Algorithms.BallSDE import marginal_prob_std, diffusion_coeff, loss_fn_state, loss_fn_img, ode_sampler, pc_sampler_img, pc_sampler_state
+from Networks.BallSDENet import ScoreModelGNN, ScoreNet
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -53,7 +45,6 @@ def collect_data(env, env_name, num_samples, num_boxes, is_state=True, obs_size=
     with tqdm(total=num_samples) as pbar:
         while len(samples) < num_samples:
             cur_state = env.reset(is_random=is_random)
-            # set_trace()
             if is_state:
                 samples.append(cur_state)
             else:
@@ -187,10 +178,8 @@ if __name__ == '__main__':
         dataset = dataset.reshape(-1, dataset.shape[-1])
         # convert dataset
         k = 3*n_box - 1
-        # k = 3*n_box - 1
         edge = knn_graph(dataset[0].reshape(n_box*3, 2), k, loop=False)
         dataset = list(map(lambda x: Data(x=x, edge_index=edge), dataset.reshape(dataset.shape[0], n_box*3, 2)))
-        # dataset *= 100000 # debug 1-sample overfitting
         # convert samples to dataloader
         dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=workers)
     else:

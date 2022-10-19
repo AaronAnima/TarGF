@@ -1,40 +1,21 @@
-import pybullet as p
-import pybullet_data
-from ipdb import set_trace
 import os
 import sys
-import time
-import math
-import copy
 import pickle
-import cv2
 import numpy as np
-from tqdm import tqdm, trange
-from collections import deque
+from tqdm import trange
 import argparse
 import functools
-import random
-from matplotlib import pyplot as plt
 from torch.utils.tensorboard import SummaryWriter
 
 import torch
-import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
-from torchvision.utils import make_grid, save_image
-from torch.utils.data import Subset
- 
- 
-from torch_geometric.nn import knn_graph
+from torchvision.utils import make_grid
 from torch_geometric.loader import DataLoader
-from torch_geometric.data import Data
-from torch_geometric.nn import GCNConv, EdgeConv
-from torch_scatter import scatter_max, scatter_mean
 
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from room_utils import exists_or_mkdir, string2bool, images_to_video, save_video, split_dataset, GraphDataset
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+from room_utils import exists_or_mkdir, split_dataset, GraphDataset
 from Algorithms.RoomSDE import marginal_prob_std, diffusion_coeff, loss_fn_cond, cond_ode_vel_sampler
-from Algorithms.RoomSDENet import DualScore, CondScoreModelGNN
+from Networks.RoomSDENet import ScoreWrapper, CondScoreModelGNN
 from Envs.RoomArrangement import SceneSampler 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -44,17 +25,12 @@ def visualize_states(eval_states, room_type, ref_batch, logger, nrow, suffix):
     # states -> images
     # if scores, then try to visualize gradient
     sampler = SceneSampler(room_type, gui='DIRECT', resize_dict={'bed': 0.8, 'shelf': 0.8})
-    # sampler = SceneSampler(room_type, gui='DIRECT')
     wall_batch, obj_batch, names = ref_batch
     ptr = obj_batch.ptr
-    # set_trace()
     imgs = []
     for idx in range(nrow**2):
         cur_state = eval_states[ptr[idx]: ptr[idx+1]]
-        # set_trace()
         sim = sampler[names[idx]]
-        # img = sim.take_snapshot(512, height=10.0)
-        # imgs.append(img)
         sim.normalize_room()
 
         # generated
@@ -175,20 +151,11 @@ if __name__ == '__main__':
             writer.add_scalar('train_loss', loss, i + epoch*len(dataloader_train))
 
         # start eval
-        # if (epoch+1) % args.eval_freq == 0:
         if epoch % args.eval_freq == 0:
             test_batch = next(iter(dataloader_test))
             with torch.no_grad():
                 t0 = args.t0
-                # use different suffix to identify each sampler's results
-                # in_process_sample_ode, res_ode = cond_ode_sampler(score,
-                #                                           marginal_prob_std_fn,
-                #                                           diffusion_coeff_fn,
-                #                                           test_batch,
-                #                                           t0=t0,
-                #                                           num_steps=2000,
-                #                                           batch_size=test_col**2)
-                dual_score = DualScore(tar_score=score if args.score_mode == 'target' else None,
+                dual_score = ScoreWrapper(tar_score=score if args.score_mode == 'target' else None,
                                        sup_score=score if args.score_mode == 'support' else None)
                 in_process_sample_ode_vel, res_ode_vel = cond_ode_vel_sampler(dual_score,
                                                                               marginal_prob_std_fn,
@@ -202,15 +169,6 @@ if __name__ == '__main__':
                                                                               is_decay=args.test_decay == 'True',
                                                                               batch_size=test_col**2)
 
-                # visualize_states(res_ode,
-                #                  'bedroom',
-                #                  test_batch,
-                #                  writer,
-                #                  test_col,
-                #                  suffix='Neural_ODE_sampler|Final Sample')
-                # res_ode_vel: [1, node_num, state_dim]
-
-                # visualisation is irrelevant to the env, just related to sampler and igibson sim
                 visualize_states(res_ode_vel.to(device)[0],
                                  args.room_type,
                                  test_batch,
@@ -220,15 +178,6 @@ if __name__ == '__main__':
                 # save model
                 with open(ckpt_path + f'score.pt', 'wb') as f:
                     pickle.dump(score, f)
-                # torch.save(score.cpu().state_dict(), ckpt_path + f'score.pt')
                 score.to(device)
-
-            # if (epoch + 1) % 20 == 0 and epoch > 50:
-            #     # visualize the process
-            #     save_video(in_process_sample.cpu().numpy(), test_env, save_path=eval_path + f'{epoch+1}')
-            #
-            #     # save model
-            #     torch.save(score.cpu().state_dict(), ckpt_path + f'score.pt')
-            #     score.to(device)
 
 

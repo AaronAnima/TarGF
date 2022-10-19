@@ -1,14 +1,10 @@
 import time
 import pickle
 import random
-from ipdb import set_trace
 
 from gym import spaces
 import numpy as np
 import pybullet as p
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 class Sorting:
     def __init__(self, max_episode_len=250, is_gui=False, time_freq=240, wall_bound=0.3, action_type='vel', **kwargs):

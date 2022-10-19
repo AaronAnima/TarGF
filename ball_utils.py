@@ -2,55 +2,14 @@ from tkinter import Image
 import numpy as np
 
 import torch
-from torchvision.transforms import ToTensor
 from torchvision import transforms
-from pytorch_fid.inception import InceptionV3
-from pytorch_fid.fid_score import adaptive_avg_pool2d
-from scipy.spatial import distance_matrix
-from scipy.stats import norm
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 from PIL import Image
 import cv2
 from scipy import linalg
-import sys
 import os
-from ipdb import set_trace
 import pickle
-import imageio
-
-
-# class RewardNormalizer(object):
-#     def __init__(self, is_norm, writer, update_freq=10, name='default'):
-#         self.reward_mean = 0
-#         self.reward_std = 1
-#         self.num_steps = 0
-#         self.vk = 0
-#         self.is_norm = is_norm
-#         self.writer = writer
-#         self.update_freq = update_freq
-#         self.name = name
-
-#     def update(self, reward, is_eval=False):
-#         if not is_eval and self.is_norm:
-#             self.num_steps += 1
-#             if self.num_steps == 1:
-#                 # the first step, no need to normalize
-#                 self.reward_mean = reward
-#                 self.vk = 0
-#                 self.reward_std = 1
-#             else:
-#                 # running mean, running std
-#                 delt = reward - self.reward_mean
-#                 self.reward_mean = self.reward_mean + delt/self.num_steps
-#                 self.vk = self.vk + delt * (reward-self.reward_mean)
-#                 self.reward_std = np.sqrt(self.vk/(self.num_steps - 1))
-#             reward = (reward - self.reward_mean) / (self.reward_std + 1e-8)
-#             ''' log the running mean/std '''
-#             if self.num_steps % self.update_freq == 0:
-#                 self.writer.add_scalar(f'Episode_rewards/RunningMean_{self.name}', np.mean(self.reward_mean), self.num_steps)
-#                 self.writer.add_scalar(f'Episode_rewards/RunningStd_{self.name}', np.mean(self.reward_std), self.num_steps)
-#         return reward
 
 class RewardNormalizer(object):
     def __init__(self, is_norm, writer, update_freq=10, name='default'):
@@ -80,9 +39,6 @@ class RewardNormalizer(object):
     
     def get_normalized_reward(self, rewards):
         rewards_norm = (rewards - self.reward_mean) / (self.reward_std + 1e-8)
-        # if self.name == 'sim':
-        #     print(rewards_norm.min())
-        #     print(rewards_norm.max())
         return rewards_norm
     
     def update_writer(self):
@@ -90,8 +46,6 @@ class RewardNormalizer(object):
         self.writer.add_scalar(f'Episode_rewards/RunningStd_{self.name}', np.mean(self.reward_std), self.num_steps)
 
     def update(self, reward, is_eval=False):
-        # if self.name == 'sim':
-        #     set_trace()
         if not is_eval and self.is_norm:
             if type(reward) is np.ndarray:
                 for item in reward:
@@ -257,7 +211,6 @@ def pdf_placing(state, num_boxes=5, is_normed=True):
     positions_centered = positions - np.mean(positions, axis=0)
     positions_centered /= np.max(np.abs(positions_centered))
     radiuses = np.sqrt(np.sum(positions_centered**2, axis=-1))
-    # radiuses_normed = radiuses/np.mean(radiuses)
     radius_std = np.std(radiuses)
     thetas = np.arctan2(positions_centered[:, 1], positions_centered[:, 0]) # theta = atan2(y, x)
     theta_std = get_delta_thetas_std(thetas)
@@ -282,7 +235,20 @@ def pdf_hybrid(state, num_boxes=5, is_normed=True):
     center_b = np.mean(positions_centered[2*n_per_class:3*n_per_class], axis=0)
     center_std = np.std(np.array([center_r, center_g, center_b]))
 
-    return np.exp(-((theta_std+radius_std) + (theta_std_r+theta_std_g+theta_std_b) - center_std)) # !!! 血坑！最后center std应该越大越好
+    return np.exp(-((theta_std+radius_std) + (theta_std_r+theta_std_g+theta_std_b) - center_std))
+
+
+def batch_likelihood(states, num_objs, env_type): 
+    pdf_funcs = {
+        'sorting': pdf_sorting, 
+        'placing': pdf_placing,
+        'hybrid': pdf_hybrid,
+    }
+    pdf_func = pdf_funcs[env_type]
+    likelihoods = []
+    for inp_state in states:
+        likelihoods.append(np.log(pdf_func(inp_state, num_objs)+1e-300)) 
+    return np.array(likelihoods)
 
 
 def chamfer_dist(x, y, metric='l1'):
@@ -299,13 +265,11 @@ def chamfer_dist(x, y, metric='l1'):
 
 def coverage_score(gt_states, states, who_cover='gen', is_category=True):
     min_dists = []
-    # orca_knn1_score_network_001_eval_100_gtnum10_placing
     # who_cover == 'gt': each gen find nearest gt， who_cover == ‘gen’: vice versa
     cover_states = gt_states if who_cover == 'gt' else states
     covered_states = states if who_cover == 'gt' else gt_states
     for covered_state in covered_states:
         min_dist = np.min(np.array([my_dist(covered_state, cover_state, is_category=is_category) for cover_state in cover_states]))
-        # print(min_dist)
         min_dists.append(min_dist)
     return np.mean(np.array(min_dists)), np.std(np.array(min_dists))
 
@@ -316,12 +280,9 @@ def my_dist(state1, state2, is_category=True):
     assert len(state2.shape) == 1
     dist = 0
     if is_category:
-        # 分part
         dist += chamfer_dist(state1[0:n_balls*2].reshape(-1, 2), state2[0:n_balls*2].reshape(-1, 2))
         dist += chamfer_dist(state1[n_balls*2:n_balls*4].reshape(-1, 2), state2[n_balls*2:n_balls*4].reshape(-1, 2))
         dist += chamfer_dist(state1[n_balls*4:n_balls*6].reshape(-1, 2), state2[n_balls*4:n_balls*6].reshape(-1, 2))
-        # # 整体
-        # dist += chamfer_dist(state1.reshape(-1, 2), state2.reshape(-1, 2))
     else:
         dist += chamfer_dist(state1.reshape(-1, 2), state2.reshape(-1, 2))
     return dist
@@ -336,32 +297,6 @@ def diversity_score(last_states, is_category=True):
     score = np.mean(np.array(dists))
     return score
 
-
-# def get_act(imgs, batch_size=64, num_workers=1, dims=2048, device='cuda'):
-#     block_idx = InceptionV3.BLOCK_INDEX_BY_DIM[dims]
-#     model = InceptionV3([block_idx]).to(device)
-#     model.eval()
-
-#     dataset = ImageDataset(imgs, transforms=ToTensor())
-#     dataloader = torch.utils.data.DataLoader(dataset,
-#                                              batch_size=batch_size,
-#                                              shuffle=False,
-#                                              drop_last=False,
-#                                              num_workers=1)
-    
-#     pred_arr = np.empty((len(imgs), dims))
-#     start_idx = 0
-    
-#     for batch in tqdm(dataloader):
-#         batch = batch.to(device)
-#         with torch.no_grad():
-#             pred = model(batch)[0]
-#         if pred.size(2) != 1 or pred.size(3) != 1:
-#             pred = adaptive_avg_pool2d(pred, output_size=(1, 1))
-#         pred = pred.squeeze(3).squeeze(2).cpu().numpy()
-#         pred_arr[start_idx:start_idx + pred.shape[0]] = pred
-#         start_idx = start_idx + pred.shape[0]
-#     return pred_arr
 
 def get_act(imgs, batch_size=64, img_size=64, num_workers=1, dims=2048, device='cuda'):
     # model_path = './Models/vae.pt'

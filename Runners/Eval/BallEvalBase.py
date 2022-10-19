@@ -1,24 +1,21 @@
 import os
 import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+
 import pickle
 import argparse
+import functools
 from math import *
 
-import cv2
 import numpy as np
 from tqdm import trange
 
 import torch
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from Envs.SortingBall import RLSorting
 from Envs.PlacingBall import RLPlacing
 from Envs.HybridBall import RLHybrid
-from Runners.BallSAC import GTTargetScore
-from utils import save_video, diversity_score, coverage_score, get_act, calc_fid_from_act
-
-from ipdb import set_trace
-
+from ball_utils import save_video, diversity_score, coverage_score, batch_likelihood
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -64,6 +61,7 @@ def set_seed(seed):
     np.random.seed(seed)
 
 
+
 def eval_trajs(env_type, trajs, num_objs, eval_env, exp_name_, render_size=256,
                is_delta_likelihood=True,
                is_average_collision=True,
@@ -71,24 +69,19 @@ def eval_trajs(env_type, trajs, num_objs, eval_env, exp_name_, render_size=256,
                is_coverage=True,
                is_likelihood_curve=True,
                seed=0,
-               is_fid=True,
-               is_act=True,
-               is_img=True,
-               old_metrics=None,
     ):
-    likelihood_estimator = GTTargetScore(num_objs, env_type=env_type)
+    likelihood_estimator = functools.partial(batch_likelihood, num_objs=num_objs, env_type=env_type)
     delta_likelihood = None
     average_collision = None
     diversity_score_ = None
-    coverage = None
     likelihood_curve = None
 
     if is_delta_likelihood:
         ''' delta_likelihood '''
         end_states = np.stack([traj[-1]['state'] for traj in trajs])
         start_states = np.stack([traj[0]['state'] for traj in trajs])
-        end_likelihoods = likelihood_estimator.total_likelihood(end_states)
-        start_likelihoods = likelihood_estimator.total_likelihood(start_states)
+        end_likelihoods = likelihood_estimator(end_states)
+        start_likelihoods = likelihood_estimator(start_states)
         delta_likelihood_mu, delta_likelihood_std = np.mean(end_likelihoods - start_likelihoods), \
                                                     np.std(end_likelihoods - start_likelihoods)
         print(f'----- seed {seed}: delta_likelihood: {delta_likelihood_mu:.3f} +- {delta_likelihood_std:.3f} -----')
@@ -129,7 +122,7 @@ def eval_trajs(env_type, trajs, num_objs, eval_env, exp_name_, render_size=256,
         trajs_likelihoods = []
         for traj in trajs:
             traj_states = np.stack([item['state'] for item in traj])
-            traj_likelihoods = likelihood_estimator.total_likelihood(traj_states)
+            traj_likelihoods = likelihood_estimator(traj_states)
             trajs_likelihoods.append(traj_likelihoods)
         trajs_likelihoods = np.stack(trajs_likelihoods)
         mu = np.mean(trajs_likelihoods, axis=0)
@@ -221,9 +214,7 @@ def merge_metrics_dicts(metrics_dicts):
         'mu': mu, 
         'lower': mu-std,
     }
-
     return metrics
-
 
 
 def full_metric(env, env_type, exp_path, policy, n_balls, exp_name, eval_num, recover=False, seeds=[0, 5, 10, 15, 20]):
@@ -258,7 +249,6 @@ def full_metric(env, env_type, exp_path, policy, n_balls, exp_name, eval_num, re
         with open(trajs_path, 'wb') as f:
             pickle.dump(trajs, f)
 
-
     # align with env's horizon
     horizon = env.max_episode_len
     trajs = [[traj[0:horizon] for traj in cur_trajs] for cur_trajs in trajs]
@@ -277,41 +267,29 @@ def full_metric(env, env_type, exp_path, policy, n_balls, exp_name, eval_num, re
 
 
 def analysis(eval_env, pdf, policy, n_box, score, t0, save_path=None, eval_episodes=100, is_state=True, obs_size=64):
-    import matplotlib.pyplot as plt
-    # is_score_curve = (score is not None)
-    # is_score_curve = False
-    # curves_gt = []
-    # curves_ours = []
     save_freq = eval_env.max_episode_len // 50
     for idx in trange(eval_episodes):
         state, done = eval_env.reset(is_random=True), False
-        cur_obs = eval_env.render(obs_size)
         state_ = state.reshape(3*n_box, -1)[:, 0:2]
         curve_gt = [np.log(pdf(state_, n_box))]
-        # if is_score_curve:
-        #     curve_estimated = [np.log(pdf(state_, n_box))]
         video_states = [state_.reshape(-1)]
         time_step = 0
         while not done:
             time_step += 1
             action = policy.select_action(np.array(state), sample=False)
             # action = eval_env.sample_action()
-            new_state, _, done, infos = eval_env.step(action, centralized=False)
-            new_obs = eval_env.render(obs_size)
+            new_state, _, done, _ = eval_env.step(action, centralized=False)
 
             state_ = state.reshape(3 * n_box, -1)[:, 0:2]
-            new_state_ = new_state.reshape(3 * n_box, -1)[:, 0:2]
             curve_gt.append(np.log(pdf(state_, n_box)))
 
             state = new_state
-            cur_obs = new_obs
             if time_step % save_freq == 0:
                 video_states.append(state_.reshape(-1))
 
         # save video
         video_duration = 5
         video_states_np = np.stack(video_states)
-        # save_video(eval_env, video_states_np, save_path=f'{save_path}video_{idx}', fps=len(video_states_np) // video_duration, suffix='mp4')
         save_video(eval_env, video_states_np, save_path=f'{save_path}video_{idx}', fps=len(video_states_np) // video_duration, suffix='gif') # save as gifs
 
 
@@ -323,7 +301,7 @@ def take_video(eval_env, policy, eval_episodes=4):
         while not done:
             video_states.append(state[:, 0:2].reshape(-1))
             action = policy.select_action(np.array(state), sample=False)
-            next_state, _, done, infos = eval_env.step(action, centralized=False)
+            next_state, _, done, _ = eval_env.step(action, centralized=False)
             state = next_state
         videos.append(video_states)
     return videos
