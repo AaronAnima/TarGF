@@ -322,12 +322,12 @@ if __name__ == '__main__':
     parser.add_argument("--is_pid", type=str, default="False")  
     parser.add_argument("--score_exp", type=str)  
     parser.add_argument("--is_orca", type=str, default="True")  
-    parser.add_argument("--is_decay", type=str, default="True")  
+    parser.add_argument("--is_decay", type=str, default="False")  
     parser.add_argument("--orca_mode", type=str, default="score")  
     parser.add_argument("--horizon", type=int, default=100)  
     parser.add_argument("--num_objs", type=int, default=7)  
     parser.add_argument("--knn_orca", type=int, default=2)  
-    parser.add_argument("--target_t0", type=float, default=0.1)  
+    parser.add_argument("--residual_t0", type=float, default=0.01)  
     parser.add_argument("--seed", type=int, default=0)  
     parser.add_argument("--eval_num", type=int, default=100)  
     parser.add_argument("--mode", type=str, default='eval')  
@@ -396,7 +396,7 @@ if __name__ == '__main__':
         max_vel=MAX_VEL,
         dt=dt, 
         tau=tau, 
-        t0=args.target_t0, 
+        t0=args.residual_t0, 
         knn=args.knn_orca, 
         is_orca=(args.is_orca == 'True'),
         horizon=args.horizon,

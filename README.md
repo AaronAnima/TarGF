@@ -22,10 +22,11 @@ This repo is the official implementation of [TarGF](https://arxiv.org/abs/2209.0
   - [Install *Room Rearrangement* Dependencies](#Install-Room-Rearrangement-Dependencies)
 - [Training](#Training)
   - [Target Score Network](#Training-the-Target-Score-Network)
-  - [*Ours (SAC)*](#Training-Ours-(SAC))
-- [Evaluation](#Training)
-  - [*Ours (ORCA)*](#For-Ours-(ORCA))
-  - [*Ours (SAC)*](#For-Ours-(SAC))
+  - [*Ours (SAC)*](#Training-SAC-with-TarGF)
+- [Evaluation](#Evaluation)
+  - [*Ours (ORCA)*](#For-TarGF-(ORCA))
+  - [*Ours (SAC)*](#For-TarGF-(SAC))
+- [Note](#Note)
 - [Citation](#Citation)
 - [Contact](#Contact)
 - [License](#License)
@@ -68,20 +69,20 @@ If you do not need to run this experiment, you can skip this procedure.
 
 
 ## Training 
-
+We assign an argument `--log_dir $log_dir` for each experiment. The in-process results will be saved in `../logs/${log_dir}`.
 
 ### Training the Target Score Network
-We assign an argument `--log_dir $log_dir` for each experiment. The in-process results will be saved in `../logs/${log_dir}`.
+**Note:** *To reproduce the results in the paper, please change `--n_samples 1e3` to `--n_samples 1e5` for all the ball rearrangement experiments.*
 
 For *Circling*:
 ```
-python Runners/BallSDE.py --log_dir Circling_Score --data_name Circling_Examples --env sorting
+python Runners/BallSDE.py --log_dir Circling_Score --data_name Circling_Examples --env placing
 ```
 
 
 For *Clustering*:
 ```
-python Runners/BallSDE.py --log_dir Clustering_Score --data_name Clustering_Examples --env placing
+python Runners/BallSDE.py --log_dir Clustering_Score --data_name Clustering_Examples --env sorting
 ```
 
 
@@ -103,22 +104,23 @@ tensorboard --logdir ../logs/${log_dir}/tb --port 10020
 where `${log_dir}` denotes the argument following `--log_dir`.
 
 ### Training SAC with TarGF
+**Note:** *To reproduce the results in the paper, please change `--residual_t0 0.01` to `--residual_t0 0.1` for all the ball rearrangement experiments.*
 
 For *Circling*:
 ```
-python Runners/BallSAC.py --log_dir Circling_SAC --env placing --lambda_col 3.0 --lambda_sim 1.0 --score_exp Circling_Score 
+python Runners/BallSAC.py --log_dir Circling_SAC --env placing --lambda_col 3.0 --lambda_sim 1.0 --score_exp Circling_Score --residual_t0 0.01 
 ```
 
 
 For *Clustering*:
 ```
-python Runners/BallSAC.py --log_dir Clustering_SAC --env sorting --lambda_col 5.0 --lambda_sim 1.0 --score_exp Clustering_Score 
+python Runners/BallSAC.py --log_dir Clustering_SAC --env sorting --lambda_col 5.0 --lambda_sim 1.0 --score_exp Clustering_Score --residual_t0 0.01 
 ```
 
 
 For *Circling+Clustering*:
 ```
-python Runners/BallSAC.py --log_dir Hybrid_SAC --env hybrid --lambda_col 5.0 --lambda_sim 1.0 --score_exp Hybrid_Score
+python Runners/BallSAC.py --log_dir Hybrid_SAC --env hybrid --lambda_col 5.0 --lambda_sim 1.0 --score_exp Hybrid_Score --residual_t0 0.01 
 ```
 
 
@@ -129,53 +131,60 @@ python Runners/RoomSAC.py --log_dir Room_SAC --score_exp Room_Score
 
 
 ## Evaluation
+We also assign an argument `--log_dir $log_dir` for each experiment. The metrics dict, trajectories and visualisations will be saved in `../logs/${log_dir}`.
+
 
 ### For *TarGF (ORCA)*
 
+**Note:** *To reproduce the results in the paper, please change `--residual_t0 0.01` to `--residual_t0 0.1` and `--is_decay False` to `--is_decay True` for all the ball rearrangement experiments.*
+
 For *Circling*:
+
 ```
-python Runners/BallSAC.py --log_dir Circling_ORCA --env placing --score_exp Circling_Score --mode eval
+python Runners/BallORCA.py --log_dir Circling_ORCA --env placing --score_exp Circling_Score --mode debug --residual_t0 0.01 --is_decay False
 ```
 
 
 For *Clustering*:
 ```
-python Runners/BallSAC.py --log_dir Clustering_ORCA --env sorting --score_exp Clustering_Score --mode eval
+python Runners/BallORCA.py --log_dir Clustering_ORCA --env sorting --score_exp Clustering_Score --mode eval --residual_t0 0.01 --is_decay False
 ```
 
 
 For *Circling+Clustering*:
 ```
-python Runners/BallSAC.py --log_dir Hybrid_ORCA --env hybrid --score_exp Hybrid_Score --mode eval
+python Runners/BallORCA.py --log_dir Hybrid_ORCA --env hybrid --score_exp Hybrid_Score --mode eval --residual_t0 0.01 --is_decay False
 ```
 
 To obtain qualitative results, change the `--mode eval` to `--mode debug`.
-The results will be saved in `../logs/${log_dir}`
+The visualisations will be saved in `../logs/${log_dir}`
 
 
 ### For *TarGF (SAC)*
 
+**Note:** *To reproduce the results in the paper, please change `--residual_t0 0.01` to `--residual_t0 0.1` for all the ball rearrangement experiments.*
+
 For *Circling*:
 ```
-python Runners/BallEvalSAC.py --log_dir Circling_SAC --env placing --score_exp Circling_Score --eval_mode full_metric
+python Runners/BallEvalSAC.py --log_dir Circling_SAC --env placing --score_exp Circling_Score --eval_mode full_metric --residual_t0 0.01
 ```
 
 
 For *Clustering*:
 ```
-python Runners/BallSAC.py --log_dir Clustering_SAC --env sorting --score_exp Clustering_Score --eval_mode full_metric
+python Runners/BallEvalSAC.py --log_dir Clustering_SAC --env sorting --score_exp Clustering_Score --eval_mode full_metric --residual_t0 0.01
 ```
 
 
 For *Circling+Clustering*:
 ```
-python Runners/BallSAC.py --log_dir Hybrid_SAC --env hybrid --score_exp Hybrid_Score --eval_mode full_metric
+python Runners/BallEvalSAC.py --log_dir Hybrid_SAC --env hybrid --score_exp Hybrid_Score --eval_mode full_metric --residual_t0 0.01
 ```
 
 
 For *Room Rearrangement*:
 ```
-python Runners/RoomSAC.py --log_dir Room_SAC --score_exp Room_Score --save_video True
+python Runners/RoomEvalSAC.py --log_dir Room_SAC --score_exp Room_Score --save_video True
 ```
 
 To obtain qualitative results of *Ball Rearrangmenet*, change the `--eval_mode full_metric` to `--eval_mode analysis`.
