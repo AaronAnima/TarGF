@@ -12,55 +12,21 @@ from tqdm import trange
 import torch
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-from Envs.SortingBall import RLSorting
-from Envs.PlacingBall import RLPlacing
-from Envs.HybridBall import RLHybrid
 from ball_utils import save_video, diversity_score, coverage_score, batch_likelihood
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def get_max_vel():
+def get_simulation_constants():
     MAX_VEL = 0.3
-    return MAX_VEL
-
-def load_env(env, max_vel, n_boxes, horizon, seed, is_onebyone=False, action_type='vel'):
-
-    ENV_DICT = {'sorting': RLSorting, 'placing': RLPlacing, 'hybrid': RLHybrid}
-    exp_data = None  # load expert examples for LfD algorithms
-    PB_FREQ = 8
-    dt_dict = {
-        'vel': 0.1 if is_onebyone else 0.02, 
-        'force': 0.05,
-    }
-    max_vel_dict = {
-        'vel': 0.3,
-        'force': 0.3,
-    }
-    MAX_VEL = max_vel_dict[action_type]
-    dt = dt_dict[action_type]
-    time_freq = int(1 / dt)
-    env_kwargs = {
-        'n_boxes': n_boxes,
-        'exp_data': exp_data,
-        'time_freq': time_freq * PB_FREQ,
-        'is_gui': False,
-        'max_action': MAX_VEL,
-        'max_episode_len': horizon,
-        'action_type': action_type,
-    }
-    env_class = ENV_DICT[env]
-    env = env_class(**env_kwargs)
-    env.seed(seed)
-    env.reset(is_random=True)
-
-    return env
-
+    dt = 0.02
+    PB_FREQ = 4
+    RADIUS = 0.025
+    WALL_BOUND = 0.3
+    return MAX_VEL, dt, PB_FREQ, RADIUS, WALL_BOUND
 
 def set_seed(seed):
     torch.manual_seed(seed)
     np.random.seed(seed)
-
-
 
 def eval_trajs(env_type, trajs, num_objs, eval_env, exp_name_, render_size=256,
                is_delta_likelihood=True,
@@ -234,11 +200,13 @@ def full_metric(env, env_type, exp_path, policy, n_balls, exp_name, eval_num, re
             print(f'Seed {seed}: Starting collecting trajs! num: {eval_num}')
             cur_trajs = []
             for _ in trange(eval_num):
+                if hasattr(policy, 'reset_policy'):
+                    policy.reset_policy()
                 state, done = env.reset(is_random=True), False
                 traj = []
                 while not done:
                     action = policy.select_action(np.array(state), sample=False)
-                    new_state, _, done, infos = env.step(action, centralized=False)
+                    new_state, _, done, infos = env.step(action)
                     state = new_state
                     cur_infos = {'state': state.reshape(n_balls*3, -1)[:, 0:2].reshape(-1), 'collision_num': infos['collision_num'].sum()}
                     traj.append(cur_infos)
@@ -266,9 +234,11 @@ def full_metric(env, env_type, exp_path, policy, n_balls, exp_name, eval_num, re
         pickle.dump(metrics, f)
 
 
-def analysis(eval_env, pdf, policy, n_box, score, t0, save_path=None, eval_episodes=100, is_state=True, obs_size=64):
+def analysis(eval_env, pdf, policy, n_box, save_path=None, eval_episodes=100):
     save_freq = eval_env.max_episode_len // 50
     for idx in trange(eval_episodes):
+        if hasattr(policy, 'reset_policy'):
+            policy.reset_policy()
         state, done = eval_env.reset(is_random=True), False
         state_ = state.reshape(3*n_box, -1)[:, 0:2]
         curve_gt = [np.log(pdf(state_, n_box))]
@@ -277,8 +247,7 @@ def analysis(eval_env, pdf, policy, n_box, score, t0, save_path=None, eval_episo
         while not done:
             time_step += 1
             action = policy.select_action(np.array(state), sample=False)
-            # action = eval_env.sample_action()
-            new_state, _, done, _ = eval_env.step(action, centralized=False)
+            new_state, _, done, _ = eval_env.step(action)
 
             state_ = state.reshape(3 * n_box, -1)[:, 0:2]
             curve_gt.append(np.log(pdf(state_, n_box)))
@@ -301,37 +270,8 @@ def take_video(eval_env, policy, eval_episodes=4):
         while not done:
             video_states.append(state[:, 0:2].reshape(-1))
             action = policy.select_action(np.array(state), sample=False)
-            next_state, _, done, _ = eval_env.step(action, centralized=False)
+            next_state, _, done, _ = eval_env.step(action)
             state = next_state
         videos.append(video_states)
     return videos
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--exp_names", nargs='+')
-    parser.add_argument("--labels", nargs='+')
-    parser.add_argument("--curve_name", type=str, default="") 
-    parser.add_argument("--eval_num", type=int, default=100) 
-    parser.add_argument("--alpha", type=float, default=0.3)
-    args = parser.parse_args()
-
-    exp_names = args.exp_names
-    labels = args.labels
-    curves = []
-    for exp_name in exp_names:
-        metric_path = f'../logs/{exp_name}/metrics_{args.eval_num}.pickle'
-        with open(metric_path, 'rb') as f:
-            metrics = pickle.load(f)
-        curve = metrics['likelihood_curve']
-        curves.append(curve)
-    import matplotlib.pyplot as plt
-    plt.clf()
-    for curve, label in zip(curves, labels):
-        # set_trace()
-        plt.plot(curve['mu'], label=label)
-        plt.fill_between(np.array(range(curve['mu'].shape[0])), curve['upper'], curve['lower'], alpha=args.alpha)
-    plt.legend(loc=4)
-    plt.show()
-    plt.savefig(f'../logs/curve_{args.curve_name}_{args.eval_num}.png')
 

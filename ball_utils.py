@@ -405,7 +405,7 @@ def calc_fid_from_imgs(gt_imgs, gen_imgs, dims=2048, device='cuda', return_full=
 
 
 def snapshot(env, file_name):
-    img = env.render(256)
+    img = env.render(img_size=256)
     cv2.imwrite(file_name, img)
 
 
@@ -427,7 +427,7 @@ def save_video(env, states, save_path, simulation=False, fps = 50, render_size =
     for _, state in tqdm(enumerate(states), desc='Saving video'):
         # set_trace()
         env.set_state(state)
-        img = env.render(render_size)
+        img = env.render(img_size=render_size)
         imgs.append(img[:, :, ::-1])
     if suffix == 'gif':
         from PIL import Image

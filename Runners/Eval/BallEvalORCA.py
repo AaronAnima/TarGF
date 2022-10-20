@@ -3,12 +3,12 @@ import sys
 
 import numpy as np
 from math import *
-from tqdm import tqdm, trange
 import functools
 import torch
+import gym
+import ebor
 
 import argparse
-import pickle
 from collections import deque
 
 
@@ -17,19 +17,15 @@ from Algorithms.ORCA.pyorca import Agent, orca
 from Algorithms.ORCA.RVO import compute_V_des
 from Algorithms.ORCA.RVO import compute_V_des
 from Runners.Train.BallSAC import load_target_score
-from Runners.Eval.BallEvalBase import eval_trajs
-from ball_utils import pdf_sorting, pdf_placing, pdf_hybrid, save_video
-from Envs.SortingBall import RLSorting
-from Envs.PlacingBall import RLPlacing
-from Envs.HybridBall import RLHybrid
-ENV_DICT = {'sorting': RLSorting, 'placing': RLPlacing, 'hybrid': RLHybrid}
-PDF_DICT = {'sorting': pdf_sorting, 'placing': pdf_placing, 'hybrid': pdf_hybrid}
+from Runners.Eval.BallEvalBase import get_simulation_constants, full_metric, analysis
+from ball_utils import pdf_sorting, pdf_placing, pdf_hybrid
+PDF_DICT = {'Clustering-v0': pdf_sorting, 'Circling-v0': pdf_placing, 'CirclingClustering-v0': pdf_hybrid}
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def normalise_vels(vels, max_vel):
     # [-inf, +inf] -> [-max_vel, max_vel]**n
-    vels = np.array(vels)
+    vels = np.array(vels).copy()
     max_vel_norm = np.max(np.abs(vels))
     scale_factor = max_vel / (max_vel_norm+1e-7)
     scale_factor = np.min([scale_factor, 1])
@@ -74,8 +70,8 @@ class PlanningAgent:
         dt=0.02, 
         tau=0.1, 
         t0=0.01, 
-        knn=1, 
-        horizon=250, 
+        knn=2, 
+        horizon=100, 
         is_decay=False, 
         one_by_one=False 
     ):
@@ -122,8 +118,8 @@ class PlanningAgent:
         if self.mode == 'goal':
             if len(self.goal_buffer) <= 0:
                 self.fill_buffer()
-            self.goal_state = self.goal_buffer.pop() # [30, ]
-            self.goal_state = self.goal_state.reshape((-1, 2)) # [15, 2]
+            self.goal_state = self.goal_buffer.pop() 
+            self.goal_state = self.goal_state.reshape((-1, 2)) 
         self.cur_time_step = 0
 
     def assign_tar_vels(self, vels):
@@ -208,93 +204,6 @@ class PlanningAgent:
             agent.velocity = new_vels[i]
         return np.array(new_vels).reshape(-1)
 
-def get_delta_thetas(cur_state):
-    positions = cur_state.reshape(-1, 2)
-    positions_centered = positions - np.mean(positions, axis=0)
-    thetas = np.arctan2(positions_centered[:, 1], positions_centered[:, 0]) # theta = atan2(y, x)
-    thetas_sorted = np.sort(thetas)
-    thetas_1 = thetas_sorted
-    thetas_2 = np.concatenate([np.array([thetas_sorted[-1] - 2 * np.pi]), thetas_sorted[0:-1]])  # deltas = [a_1+2pi - a_n, a_2 - a_1, ... a_n - a_n-1]
-    delta_thetas = thetas_1 - thetas_2
-    print(thetas_1)
-    print(thetas_2)
-    print(delta_thetas)
-    print(np.std(delta_thetas))
-    return delta_thetas
-
-
-def debug_orca(eval_num):
-    # save 50 images at most
-    save_freq = args.horizon // 50
-    for episode_idx in tqdm(range(eval_num)):
-        collision_num = 0
-        vel_errs = []
-        vel_errs_mean = []
-        policy.reset_policy()  # if goal, then this func will init the goal state
-        state = env.reset(is_random=True)
-        states_np = [state]
-        HORIZON = args.horizon
-        pdf_func = PDF_DICT[args.env]
-        # print(get_delta_thetas(state))
-        for idx in range(HORIZON):
-            action = policy.select_action(state)
-            state, _, _, infos = env.step(action, step_size=PB_FREQ)
-            vel_errs.append(infos['vel_err'])
-            vel_errs_mean.append(infos['vel_err_mean'])
-            if idx % save_freq == 0:
-                states_np.append(state)
-            collision_num += infos['collision_num']
-        # print(get_delta_thetas(state))
-        print(
-            f'### Average vel err: {sum(vel_errs) / len(vel_errs)} || Mean vel err: {sum(vel_errs_mean) / len(vel_errs_mean)}###')
-        print(f'### Mean Collision Num: {collision_num / HORIZON}, Total Collision Num: {collision_num} ###')
-        print(f'### likelihood: {np.log(pdf_func(state, args.num_objs))} ###')
-        # save_video(env, states_np, save_path=f'{exp_path}test_video_{episode_idx}', fps=len(states_np) // 5, suffix='mp4')
-        save_video(env, states_np, save_path=f'{exp_path}test_video_{episode_idx}', fps=len(states_np) // 5, suffix='gif')
-
-def eval_orca(seeds=[0]):
-    print('----- Start Collecting Trajs -----')
-    trajs = []
-    trajs_path = exp_path+f'trajs_{args.num_objs}_{args.eval_num}.pickle'
-    metrics_path = exp_path+f'metrics_{args.num_objs}_{args.eval_num}.pickle'
-    
-    if os.path.exists(trajs_path) and (args.recover == 'True'):
-        print('----- Find Existing Trajs!! -----')
-        with open(trajs_path, 'rb') as f:
-            trajs = pickle.load(f)
-    else:
-        for seed in seeds:
-            env.seed(seed)
-            print(f'Seed {seed}: Starting collecting trajs! num: {args.eval_num}')
-            cur_trajs = []
-            for _ in trange(args.eval_num):
-                policy.reset_policy()  # if orca_mode == 'goal', then this func will init the goal state
-                state = env.reset(is_random=True)
-                traj = []
-                infos = None
-                for _ in range(args.horizon):
-                    action = policy.select_action(state, infos)
-                    state, _, _, infos = env.step(action, step_size=PB_FREQ)
-                    cur_infos = {'state': state, 'collision_num': infos['collision_num']}
-                    traj.append(cur_infos)
-                cur_trajs.append(traj)
-            trajs.append(cur_trajs)
-
-        # save trajs
-        with open(trajs_path, 'wb') as f:
-            pickle.dump(trajs, f)
-    
-    print('----- Start Eval Trajs -----')
-    metrics_dicts = []
-    for seed, cur_trajs in zip(seeds, trajs):
-        # By default, seeds = [0, 5, 10, ... 5*k, ... ]
-        metrics_dicts.append(eval_trajs(args.env, cur_trajs, args.num_objs, env, args.log_dir, seed=5*seed))
-    # metrics = merge_metrics_dicts(metrics_dicts)
-    metrics = metrics_dicts[0]
-
-    # save metrics
-    with open(metrics_path, 'wb') as f:
-        pickle.dump(metrics, f)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -315,51 +224,25 @@ if __name__ == '__main__':
     parser.add_argument("--residual_t0", type=float, default=0.01)  
     parser.add_argument("--seed", type=int, default=0)  
     parser.add_argument("--eval_num", type=int, default=100)  
-    parser.add_argument("--mode", type=str, default='eval')  
+    parser.add_argument("--eval_mode", type=str, default='full_metric')  
     args = parser.parse_args()
 
-    if not os.path.exists("../logs"):
-        os.makedirs("../logs")
+    if not os.path.exists("./logs"):
+        os.makedirs("./logs")
 
-    exp_path = f"../logs/{args.log_dir}/"
+    exp_path = f"./logs/{args.log_dir}/"
     if not os.path.exists(exp_path):
         os.makedirs(exp_path)
     
     is_onebyone = (args.is_onebyone == 'True')
     is_pid = (args.is_pid == 'True')
 
-    ''' init my env '''
-    assert args.env in ['sorting', 'placing', 'hybrid', 'sorting6', 'circlerect']
-    exp_data = None  # load expert examples for LfD algorithms
-    # PB_FREQ = 4
-    PB_FREQ = 8
-    MARGIN = 0.10
-    BOUND = 0.3
-    RADIUS = 0.025 * (1 + MARGIN) / (BOUND - 0.025)
-    action_type = args.action_type
-    dt_dict = {
-        'vel': 0.1 if is_onebyone else 0.02, 
-        'force': 0.02,
-    }
-    max_vel_dict = {
-        'vel': 0.3,
-        'force': 0.3,
-    }
-    MAX_VEL = max_vel_dict[action_type]
-    dt = dt_dict[action_type]
-    tau = 10 * dt
-    time_freq = int(1 / dt)
-    env_kwargs = {
-        'n_boxes': args.num_objs,
-        'exp_data': exp_data,
-        'time_freq': time_freq * PB_FREQ,
-        'is_gui': False,
-        'max_action': MAX_VEL,
-        'max_episode_len': args.horizon,
-        'action_type': action_type,
-    }
-    env_class = ENV_DICT[args.env]
-    env = env_class(**env_kwargs)
+    ''' init env and set some physical parameters '''
+    MAX_VEL, dt, PB_FREQ, RADIUS, WALL_BOUND = get_simulation_constants()
+    MARGIN = 0.1
+    RADIUS = RADIUS * (1 + MARGIN) / (WALL_BOUND - RADIUS)
+    tau = dt * 10 # orca hyper parameter
+    env = gym.make(args.env)
     env.seed(args.seed)
     env.reset(is_random=True)
 
@@ -368,7 +251,7 @@ if __name__ == '__main__':
     np.random.seed(args.seed)
 
     ''' Load Target Score '''
-    network_mode = 'target' if args.env in ['sorting', 'hybrid'] else 'support'
+    network_mode = 'target' if 'Clustering' in args.env else 'support'
     target_score, diffusion_coeff_fn = load_target_score(args.score_exp, network_mode, args.num_objs, MAX_VEL)
 
     policy = PlanningAgent(
@@ -390,13 +273,16 @@ if __name__ == '__main__':
         is_pid=is_pid,
         )
 
-    if args.mode == 'debug':
+    if args.eval_mode == 'analysis':
         ''' If u gonna debug '''
-        debug_orca(args.eval_num)
-    elif args.mode == 'eval':
+        eval_path = f"./logs/{args.log_dir}/analysis_{args.log_dir}/"
+        if not os.path.exists(eval_path):
+            os.makedirs(eval_path)
+        analysis_score = policy.target_score
+        analysis(env, PDF_DICT[args.env], policy, args.num_objs, eval_episodes=args.eval_num, save_path=f'{eval_path}')
+    elif args.eval_mode == 'full_metric':
         ''' Eval Episodes '''
-        # full_metric(env, args.env, exp_path, policy, args.num_objs, args.log_dir, args.eval_num, recover=(args.recover == 'True'))
-        eval_orca()
+        full_metric(env, args.env, exp_path, policy, args.num_objs, args.log_dir, args.eval_num, recover=(args.recover == 'True'))
     else:
         print('ORCA Mode Error!!!')
         raise NotImplementedError

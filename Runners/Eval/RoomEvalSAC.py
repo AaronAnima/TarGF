@@ -31,7 +31,7 @@ if __name__ == "__main__":
     parser.add_argument("--save_video", type=str, default="True")
     args = parser.parse_args()
 
-    exp_path = f"../logs/{args.log_dir}/"
+    exp_path = f"./logs/{args.log_dir}/"
     
     ''' init my env '''
     max_vel = get_max_vel()

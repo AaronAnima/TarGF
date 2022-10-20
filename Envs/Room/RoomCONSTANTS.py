@@ -1,5 +1,3 @@
-# bedroom:
-
 bedroom_category_num_dict = {'bed': 3880, 'bottom_cabinet': 9744, 'coffee_table': 568,
                              'chair': 919, 'shelf': 674, 'table': 1031,
                              'stool': 294, 'sofa_chair': 181, 'sofa': 117, 'top_cabinet': 1}

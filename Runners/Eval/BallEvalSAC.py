@@ -3,13 +3,14 @@ import os
 import sys
 import argparse
 import torch
+import gym
 
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-from Runners.Eval.BallEvalBase import get_max_vel, load_env, set_seed, analysis, full_metric
-from Runners.Train.BallSAC import TargetScore
+from Runners.Eval.BallEvalBase import get_simulation_constants, set_seed, analysis, full_metric
+from Runners.Train.BallSAC import TargetScore # to unpickle the checkpoints
 from ball_utils import pdf_sorting, pdf_placing, pdf_hybrid
-PDF_DICT = {'sorting': pdf_sorting, 'placing': pdf_placing, 'hybrid': pdf_hybrid}
+PDF_DICT = {'Clustering-v0': pdf_sorting, 'Circling-v0': pdf_placing, 'CirclingClustering-v0': pdf_hybrid}
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -43,14 +44,14 @@ parser.add_argument("--policy_freq", default=1, type=int)
 
 args = parser.parse_args()
 
-if not os.path.exists("../logs"):
-    os.makedirs("../logs")
+if not os.path.exists("./logs"):
+    os.makedirs("./logs")
 
-exp_path = f"../logs/{args.log_dir}/"
+exp_path = f"./logs/{args.log_dir}/"
 if not os.path.exists(exp_path):
     os.makedirs(exp_path)
 
-tb_path = f"../logs/{args.log_dir}/tb"
+tb_path = f"./logs/{args.log_dir}/tb"
 if not os.path.exists(tb_path):
     os.makedirs(tb_path)
 
@@ -60,8 +61,10 @@ is_state = (inp_mode == 'state')
 is_onebyone = (args.is_onebyone == 'True')
 
 ''' init my env '''
-max_vel = get_max_vel()
-env = load_env(args.env, max_vel, args.n_boxes, args.horizon, args.seed, is_onebyone=is_onebyone, action_type=args.action_type)
+MAX_VEL, dt, PB_FREQ, RADIUS, _ = get_simulation_constants()
+env = gym.make(args.env)
+env.seed(args.seed)
+env.reset()
 
 ''' set seeds '''
 set_seed(args.seed)
@@ -75,12 +78,11 @@ if args.eval_mode == 'full_metric':
     seeds = [args.seed + i*5 for i in range(5)]
     full_metric(env, args.env, exp_path, policy, args.n_boxes, args.log_dir, args.eval_num, recover=(args.recover == 'True'), seeds=seeds)
 elif args.eval_mode == 'analysis':
-    eval_path = f"../logs/{args.log_dir}/analysis_{args.log_dir}/"
+    eval_path = f"./logs/{args.log_dir}/analysis_{args.log_dir}/"
     if not os.path.exists(eval_path):
         os.makedirs(eval_path)
     analysis_score = policy.target_score
-    analysis(env, PDF_DICT[args.env], policy, args.n_boxes, t0=args.reward_t0, score=analysis_score, eval_episodes=EVAL_NUM, save_path=f'{eval_path}', is_state=is_state)
-    # analysis(env, args.env, policy, args.n_boxes, t0=args.reward_t0, score=None, eval_episodes=EVAL_NUM, save_path=f'{eval_path}')
+    analysis(env, PDF_DICT[args.env], policy, args.n_boxes, eval_episodes=EVAL_NUM, save_path=f'{eval_path}')
 else:
     print('--- Eval Mode Error! ---')
     raise NotImplementedError

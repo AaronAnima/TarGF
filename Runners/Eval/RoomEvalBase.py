@@ -10,7 +10,7 @@ import torch
 from tqdm import tqdm, trange
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-from Envs.RoomArrangement import RLEnvDynamic, SceneSampler
+from Envs.Room.RoomArrangement import RLEnvDynamic, SceneSampler
 from room_utils import calc_coverage, exists_or_mkdir, images_to_video
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

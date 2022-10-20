@@ -3,6 +3,8 @@ import sys
 import time
 import pickle
 import cv2
+import gym
+import ebor
 import numpy as np
 from tqdm import tqdm, trange
 import argparse
@@ -21,22 +23,18 @@ from torch_geometric.data import Data
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from ball_utils import exists_or_mkdir, save_video
-from Envs.SortingBall import RLSorting
-from Envs.PlacingBall import RLPlacing
-from Envs.HybridBall import RLHybrid
-ENV_DICT = {'sorting': RLSorting, 'placing': RLPlacing, 'hybrid': RLHybrid}
 from Algorithms.BallSDE import marginal_prob_std, diffusion_coeff, loss_fn_state, loss_fn_img, ode_sampler, pc_sampler_img, pc_sampler_state
 from Networks.BallSDENet import ScoreModelGNN, ScoreNet
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def snapshot(env, file_name):
-    img = env.render(256)
+    img = env.render(img_size=256)
     cv2.imwrite(file_name, img)
 
 def collect_data(env, env_name, num_samples, num_boxes, is_state=True, obs_size=64, is_random=False, is_gui=False, suffix=''):
-    exists_or_mkdir('../ExpertDatasets/')
-    debug_path = f'../ExpertDatasets/{env_name}_{suffix}/'
+    exists_or_mkdir('./ExpertDatasets/')
+    debug_path = f'./ExpertDatasets/{env_name}_{suffix}/'
     exists_or_mkdir(debug_path)
     samples = []
     debug_freq = 100
@@ -48,7 +46,7 @@ def collect_data(env, env_name, num_samples, num_boxes, is_state=True, obs_size=
             if is_state:
                 samples.append(cur_state)
             else:
-                cur_obs = env.render(obs_size)
+                cur_obs = env.render(img_size=obs_size)
                 samples.append(cur_obs)
             if len(samples) % debug_freq == 0:
                 snapshot(env, f'{debug_path}debug_{len(samples)//debug_freq}.png')
@@ -63,7 +61,7 @@ def visualize_states(eval_states, env, logger, nrow, suffix):
     imgs = []
     for box_state in eval_states:
         env.set_state(box_state)
-        img = env.render(render_size)
+        img = env.render(img_size=render_size)
         imgs.append(img)
     batch_imgs = np.stack(imgs, axis=0)
     ts_imgs = torch.tensor(batch_imgs).permute(0, 3, 1, 2)
@@ -120,7 +118,7 @@ if __name__ == '__main__':
     lr = args.lr
     beta1 = args.beta1
     render_size = args.render_size
-    dataset_path = f'../ExpertDatasets/{args.data_name}.pth'
+    dataset_path = f'./ExpertDatasets/{args.data_name}.pth'
     inp_mode = args.inp_mode
     is_state = (inp_mode == 'state')
     if not is_state:
@@ -128,30 +126,17 @@ if __name__ == '__main__':
     obs_size = args.obs_size
     
     # create log path
-    exists_or_mkdir('../logs')
-    ckpt_path = f'../logs/{args.log_dir}/'
+    exists_or_mkdir('./logs')
+    ckpt_path = f'./logs/{args.log_dir}/'
     exists_or_mkdir(ckpt_path)
-    eval_path = f'../logs/{args.log_dir}/test_batch/'
+    eval_path = f'./logs/{args.log_dir}/test_batch/'
     exists_or_mkdir(eval_path)
-    tb_path = f'../logs/{args.log_dir}/tb'
+    tb_path = f'./logs/{args.log_dir}/tb'
     exists_or_mkdir(tb_path)
     writer = SummaryWriter(tb_path)
 
     ''' init my env '''
-    exp_data = None
-    PB_FREQ = 4
-    dt = 0.02
-    MAX_VEL = 0.3
-    time_freq = int(1 / dt)
-    env_kwargs = {
-        'n_boxes': args.n_box,
-        'exp_data': exp_data,
-        'time_freq': time_freq * PB_FREQ,
-        'is_gui': False,
-        'max_action': MAX_VEL,
-    }
-    env_class = ENV_DICT[args.env]
-    env = env_class(**env_kwargs)
+    env = gym.make(args.env)
     env.seed(args.seed)
     env.reset()
 
@@ -194,7 +179,7 @@ if __name__ == '__main__':
 
     if is_state:
         # create models, optimizers, and loss
-        mode = 'target' if args.env in ['sorting', 'hybrid', 'npa', 'sorting6'] else 'support'
+        mode = 'target' if 'Clustering' in args.env else 'support'
         score = ScoreModelGNN(marginal_prob_std_fn, n_box=n_box, mode=mode, device=device)
     else:
         score = ScoreNet(marginal_prob_std=marginal_prob_std_fn)

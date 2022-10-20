@@ -14,8 +14,8 @@ from igibson.scenes.igibson_indoor_scene import InteractiveIndoorScene
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from Envs.RoomCONSTANTS import bedroom_type_mapping, bedroom_typeidx_mapping, livingroom_type_mapping, livingroom_typeidx_mapping
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+from Envs.Room.RoomCONSTANTS import bedroom_type_mapping, bedroom_typeidx_mapping, livingroom_type_mapping, livingroom_typeidx_mapping
 from room_utils import GraphDataset4RL, split_dataset
 
 
@@ -553,8 +553,7 @@ class ProxySimulator(MySimulator):
                                          cameraTargetPosition=[0, 0, 0], physicsClientId=self.cid)
         else:
             self.cid = p.connect(p.DIRECT)
-        my_data_path = './Assets/'
-
+        my_data_path = os.path.join(os.path.dirname(__file__), 'Assets')
         # plane: 200*200, plane_transparent: 30*30
         plane_base = p.loadURDF(my_data_path + "plane.urdf", [0, 0, 0], p.getQuaternionFromEuler([0, 0, 0]),
                                 physicsClientId=self.cid)

@@ -16,7 +16,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from room_utils import exists_or_mkdir, split_dataset, GraphDataset
 from Algorithms.RoomSDE import marginal_prob_std, diffusion_coeff, loss_fn_cond, cond_ode_vel_sampler
 from Networks.RoomSDENet import ScoreWrapper, CondScoreModelGNN
-from Envs.RoomArrangement import SceneSampler 
+from Envs.Room.RoomArrangement import SceneSampler 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -91,12 +91,12 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # create log path
-    exists_or_mkdir('../logs')
-    ckpt_path = f'../logs/{args.log_dir}/'
+    exists_or_mkdir('./logs')
+    ckpt_path = f'./logs/{args.log_dir}/'
     exists_or_mkdir(ckpt_path)
-    eval_path = f'../logs/{args.log_dir}/test_batch/'
+    eval_path = f'./logs/{args.log_dir}/test_batch/'
     exists_or_mkdir(eval_path)
-    tb_path = f'../logs/{args.log_dir}/tb'
+    tb_path = f'./logs/{args.log_dir}/tb'
     exists_or_mkdir(tb_path)
 
     # init writer

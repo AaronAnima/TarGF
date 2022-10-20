@@ -16,7 +16,7 @@ from room_utils import RewardNormalizer
 from Algorithms.RoomSDE import marginal_prob_std, diffusion_coeff, score_to_action
 from Algorithms.RoomSAC import MASAC, ReplayBuffer
 from room_utils import prepro_graph_batch, Timer
-from Envs.RoomArrangement import RLEnvDynamic, SceneSampler
+from Envs.Room.RoomArrangement import RLEnvDynamic, SceneSampler
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -100,7 +100,7 @@ class RewardSampler:
 
 
 def load_target_score(score_exp, sigma, max_action, hidden_dim, embed_dim):
-    tar_path = f'../logs/{score_exp}/score.pt'
+    tar_path = f'./logs/{score_exp}/score.pt'
 
     with open(tar_path, 'rb') as f:
         score = pickle.load(f)
@@ -207,11 +207,11 @@ if __name__ == "__main__":
     if not os.path.exists("../logs"):
         os.makedirs("../logs")
 
-    exp_path = f"../logs/{args.log_dir}/"
+    exp_path = f"./logs/{args.log_dir}/"
     if not os.path.exists(exp_path):
         os.makedirs(exp_path)
 
-    tb_path = f"../logs/{args.log_dir}/tb"
+    tb_path = f"./logs/{args.log_dir}/tb"
     if not os.path.exists(tb_path):
         os.makedirs(tb_path)
     writer = SummaryWriter(tb_path)

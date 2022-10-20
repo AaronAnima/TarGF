@@ -59,11 +59,24 @@ pip install opencv-python tensorboard pytorch_fid ipdb imageio
 
 ### Install *Ball Rearrangement* Dependencies
 
-`pip install gym pybullet`
+```
+pip install gym pybullet
+
+cd Envs
+
+git clone https://github.com/AaronAnima/EbOR # install Example-based Object Rearrangement (EbOR) environments
+
+cd EbOR
+
+pip install -e .
+
+cd ../../
+```
+
 
 ### Install *Room Rearrangement* Dependencies
 
-Please follow the README in [this page](https://github.com/AaronAnima/TarGF/tree/main/Envs).
+Please follow the README in [this page](https://github.com/AaronAnima/TarGF/tree/main/Envs/Room).
 
 If you do not need to run this experiment, you can skip this procedure. 
 
@@ -76,19 +89,19 @@ We assign an argument `--log_dir $log_dir` for each experiment. The in-process r
 
 For *Circling*:
 ```
-python Runners/Train/BallSDE.py --log_dir Circling_Score --data_name Circling_Examples --env placing
+python Runners/Train/BallSDE.py --log_dir Circling_Score --data_name Circling_Examples --env Circling-v0
 ```
 
 
 For *Clustering*:
 ```
-python Runners/Train/BallSDE.py --log_dir Clustering_Score --data_name Clustering_Examples --env sorting
+python Runners/Train/BallSDE.py --log_dir Clustering_Score --data_name Clustering_Examples --env Clustering-v0
 ```
 
 
 For *Circling+Clustering*:
 ```
-python Runners/Train/BallSDE.py --log_dir Hybrid_Score --data_name Hybrid_Examples --env hybrid
+python Runners/Train/BallSDE.py --log_dir Hybrid_Score --data_name Hybrid_Examples --env CirclingClustering-v0
 ```
 
 
@@ -108,19 +121,19 @@ where `${log_dir}` denotes the argument following `--log_dir`.
 
 For *Circling*:
 ```
-python Runners/Train/BallSAC.py --log_dir Circling_SAC --env placing --lambda_col 3.0 --lambda_sim 1.0 --score_exp Circling_Score --residual_t0 0.01 
+python Runners/Train/BallSAC.py --log_dir Circling_SAC --env Circling-v0 --lambda_col 3.0 --lambda_sim 1.0 --score_exp Circling_Score --residual_t0 0.01 
 ```
 
 
 For *Clustering*:
 ```
-python Runners/Train/BallSAC.py --log_dir Clustering_SAC --env sorting --lambda_col 5.0 --lambda_sim 1.0 --score_exp Clustering_Score --residual_t0 0.01 
+python Runners/Train/BallSAC.py --log_dir Clustering_SAC --env Clustering-v0 --lambda_col 5.0 --lambda_sim 1.0 --score_exp Clustering_Score --residual_t0 0.01 
 ```
 
 
 For *Circling+Clustering*:
 ```
-python Runners/Train/BallSAC.py --log_dir Hybrid_SAC --env hybrid --lambda_col 5.0 --lambda_sim 1.0 --score_exp Hybrid_Score --residual_t0 0.01 
+python Runners/Train/BallSAC.py --log_dir Hybrid_SAC --env CirclingClustering-v0 --lambda_col 5.0 --lambda_sim 1.0 --score_exp Hybrid_Score --residual_t0 0.01 
 ```
 
 
@@ -141,22 +154,22 @@ We also assign an argument `--log_dir $log_dir` for each experiment. The metrics
 For *Circling*:
 
 ```
-python Runners/Eval/BallEvalORCA.py --log_dir Circling_ORCA --env placing --score_exp Circling_Score --mode debug --residual_t0 0.01 --is_decay False
+python Runners/Eval/BallEvalORCA.py --log_dir Circling_ORCA --env Circling-v0 --score_exp Circling_Score --eval_mode full_metric --residual_t0 0.01 --is_decay False
 ```
 
 
 For *Clustering*:
 ```
-python Runners/Eval/BallORCA.py --log_dir Clustering_ORCA --env sorting --score_exp Clustering_Score --mode eval --residual_t0 0.01 --is_decay False
+python Runners/Eval/BallEvalORCA.py --log_dir Clustering_ORCA --env Clustering-v0 --score_exp Clustering_Score --eval_mode full_metric --residual_t0 0.01 --is_decay False
 ```
 
 
 For *Circling+Clustering*:
 ```
-python Runners/Eval/BallORCA.py --log_dir Hybrid_ORCA --env hybrid --score_exp Hybrid_Score --mode eval --residual_t0 0.01 --is_decay False
+python Runners/Eval/BallEvalORCA.py --log_dir Hybrid_ORCA --env CirclingClustering-v0 --score_exp Hybrid_Score --eval_mode full_metric --residual_t0 0.01 --is_decay False
 ```
 
-To obtain qualitative results, change the `--mode eval` to `--mode debug`.
+To obtain qualitative results, change the `--eval_mode full_metric` to `--eval_mode analysis`.
 The visualisations will be saved in `../logs/${log_dir}`
 
 
@@ -166,19 +179,19 @@ The visualisations will be saved in `../logs/${log_dir}`
 
 For *Circling*:
 ```
-python Runners/Eval/BallEvalSAC.py --log_dir Circling_SAC --env placing --score_exp Circling_Score --eval_mode full_metric --residual_t0 0.01
+python Runners/Eval/BallEvalSAC.py --log_dir Circling_SAC --env Circling-v0 --score_exp Circling_Score --eval_mode full_metric --residual_t0 0.01
 ```
 
 
 For *Clustering*:
 ```
-python Runners/Eval/BallEvalSAC.py --log_dir Clustering_SAC --env sorting --score_exp Clustering_Score --eval_mode full_metric --residual_t0 0.01
+python Runners/Eval/BallEvalSAC.py --log_dir Clustering_SAC --env Clustering-v0 --score_exp Clustering_Score --eval_mode full_metric --residual_t0 0.01
 ```
 
 
 For *Circling+Clustering*:
 ```
-python Runners/Eval/BallEvalSAC.py --log_dir Hybrid_SAC --env hybrid --score_exp Hybrid_Score --eval_mode full_metric --residual_t0 0.01
+python Runners/Eval/BallEvalSAC.py --log_dir Hybrid_SAC --env CirclingClustering-v0 --score_exp Hybrid_Score --eval_mode full_metric --residual_t0 0.01
 ```
 
 

@@ -2,6 +2,8 @@ import numpy as np
 import torch
 import argparse
 import os
+import gym
+import ebor
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.utils import make_grid
 import sys
@@ -15,15 +17,11 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from ball_utils import pdf_sorting, pdf_placing, pdf_hybrid, diversity_score, RewardNormalizer
 from Algorithms.BallSDE import marginal_prob_std, diffusion_coeff, pc_sampler_state, ode_sampler, Euler_Maruyama_sampler
 from Algorithms.BallSAC import MASAC, ReplayBuffer
-from Envs.SortingBall import RLSorting
-from Envs.PlacingBall import RLPlacing
-from Envs.HybridBall import RLHybrid
-ENV_DICT = {'sorting': RLSorting, 'placing': RLPlacing, 'hybrid': RLHybrid}
-PDF_DICT = {'sorting': pdf_sorting, 'placing': pdf_placing, 'hybrid': pdf_hybrid}
+from Runners.Eval.BallEvalBase import get_simulation_constants
+PDF_DICT = {'Clustering-v0': pdf_sorting, 'Circling-v0': pdf_placing, 'CirclingClustering-v0': pdf_hybrid}
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 
 def visualize_states(eval_states, env, logger, epoch, nrow, suffix):
     # states -> images
@@ -32,7 +30,7 @@ def visualize_states(eval_states, env, logger, epoch, nrow, suffix):
     render_size = 256
     for box_state in eval_states:
         env.set_state(box_state)
-        img = env.render(render_size)
+        img = env.render(img_size=render_size)
         imgs.append(img)
     batch_imgs = np.stack(imgs, axis=0)
     ts_imgs = torch.tensor(batch_imgs).permute(0, 3, 1, 2)
@@ -94,7 +92,7 @@ class RewardSampler:
             target_score=None,
             reward_mode='cos',
             reward_freq=1,
-            is_centralized=True,
+            is_centralized=False,
             lambda_sim=1.0,
             lambda_col=1.0,
             t0=0.01,
@@ -209,7 +207,7 @@ def eval_metric(eval_env, env_name, policy, n_box, reward_func, writer, eval_epi
         delta_likelihoods = -np.log(pdf(state, n_box))
         while not done:
             action = policy.select_action(np.array(state), sample=False)
-            state, _, done, infos = eval_env.step(action, centralized=False)
+            state, _, done, infos = eval_env.step(action)
             collisions = infos['collision_num']
             avg_collision += np.sum(collisions)
         last_states.append(state)
@@ -230,7 +228,7 @@ def eval_metric(eval_env, env_name, policy, n_box, reward_func, writer, eval_epi
 
 def load_target_score(score_exp, network_mode, num_objs, max_action, is_state=True):
     diffusion_coeff_func = functools.partial(diffusion_coeff, sigma=25)
-    tar_path = f'../logs/{score_exp}/score.pt'
+    tar_path = f'./logs/{score_exp}/score.pt'
     with open(tar_path, 'rb') as f:
         score_target = pickle.load(f)
     return TargetScore(score_target.to(device), num_objs, max_action, is_state=is_state), diffusion_coeff_func
@@ -276,17 +274,17 @@ if __name__ == "__main__":
     parser.add_argument("--load_exp", type=str, default="None")  
     args = parser.parse_args()
 
-    if not os.path.exists("../logs"):
-        os.makedirs("../logs")
+    if not os.path.exists("./logs"):
+        os.makedirs("./logs")
 
-    exp_path = f"../logs/{args.log_dir}/"
+    exp_path = f"./logs/{args.log_dir}/"
     if not os.path.exists(exp_path):
         os.makedirs(exp_path)
 
     best_ckpt_path = exp_path + 'best'
     last_ckpt_path = exp_path # to be consistent with prev experiments
 
-    tb_path = f"../logs/{args.log_dir}/tb"
+    tb_path = f"./logs/{args.log_dir}/tb"
     if not os.path.exists(tb_path):
         os.makedirs(tb_path)
     writer = SummaryWriter(tb_path)
@@ -300,40 +298,17 @@ if __name__ == "__main__":
     obs_size = args.obs_size
 
     ''' init my env '''
-    exp_data = None  # load expert examples for LfD algorithms
-    PB_FREQ = 4
-    action_type = args.action_type
-    dt_dict = {
-        'vel': 0.02, 
-        'force': 0.05,
-    }
-    max_vel_dict = {
-        'vel': 0.3,
-        'force': 100.0,
-    }
-    MAX_VEL = max_vel_dict[action_type]
-    dt = dt_dict[action_type]
-    time_freq = int(1 / dt)
-    env_kwargs = {
-        'n_boxes': args.n_boxes,
-        'exp_data': exp_data,
-        'time_freq': time_freq * PB_FREQ,
-        'is_gui': False,
-        'max_action': MAX_VEL,
-        'max_episode_len': args.horizon,
-        'action_type': action_type,
-    }
-    env_class = ENV_DICT[args.env]
-    env = env_class(**env_kwargs)
+    MAX_VEL, dt, PB_FREQ, RADIUS, _ = get_simulation_constants()
+    env = gym.make(args.env)
     env.seed(args.seed)
-    env.reset(is_random=True)
+    env.reset()
 
     ''' set seeds '''
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
 
     ''' Load Target Score '''
-    network_mode = 'target' if args.env in ['sorting', 'hybrid', 'sorting6'] else 'support'
+    network_mode = 'target' if 'Clustering' in args.env else 'support'
     target_score, diffusion_coeff_fn = load_target_score(args.score_exp, network_mode, num_per_class, MAX_VEL, is_state=is_state)
     target_score_state, _ = load_target_score(args.score_exp, network_mode, num_per_class, MAX_VEL, is_state=True)
 
@@ -356,7 +331,7 @@ if __name__ == "__main__":
     }
     policy = MASAC(**kwargs)
     if not args.load_exp == 'None':
-        policy.load(f"../logs/{args.load_exp}/")
+        policy.load(f"./logs/{args.load_exp}/")
 
     ''' Init Buffer '''
     state_dim = 3*2*args.n_boxes
@@ -390,7 +365,7 @@ if __name__ == "__main__":
     episode_timesteps = 0
     episode_num = 0
     best_delta_likelihood = 0
-    cur_obs = env.render(obs_size)
+    cur_obs = env.render(img_size=obs_size)
 
     for t in trange(int(args.max_timesteps)):
 
@@ -403,8 +378,8 @@ if __name__ == "__main__":
             action = policy.select_action(np.array(state), sample=True)
 
         # Perform action
-        next_state, _, done, infos = env.step(action, centralized=False)
-        new_obs = env.render(obs_size)
+        next_state, _, done, infos = env.step(action)
+        new_obs = env.render(img_size=obs_size)
 
         if is_state:
             reward, reward_similarity, reward_collision =  reward_func.get_reward(actions=action, info=infos, cur_state=state, new_state=next_state)
@@ -442,7 +417,7 @@ if __name__ == "__main__":
 
             # Reset environment
             state, done = env.reset(is_random=True), False
-            cur_obs = env.render(obs_size)
+            cur_obs = env.render(img_size=obs_size)
             reward_func.reset_reward()
             episode_reward = 0
             episode_collision_reward = 0
