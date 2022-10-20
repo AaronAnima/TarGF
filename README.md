@@ -89,19 +89,19 @@ We assign an argument `--log_dir $log_dir` for each experiment. The in-process r
 
 For *Circling*:
 ```
-python Runners/Train/BallSDE.py --log_dir Circling_Score --data_name Circling_Examples --env Circling-v0
+python Runners/Train/BallSDE.py --log_dir Circling_Score --data_name Circling_Examples --env Circling-v0 --n_samples 1e3
 ```
 
 
 For *Clustering*:
 ```
-python Runners/Train/BallSDE.py --log_dir Clustering_Score --data_name Clustering_Examples --env Clustering-v0
+python Runners/Train/BallSDE.py --log_dir Clustering_Score --data_name Clustering_Examples --env Clustering-v0 --n_samples 1e3
 ```
 
 
 For *Circling+Clustering*:
 ```
-python Runners/Train/BallSDE.py --log_dir Hybrid_Score --data_name Hybrid_Examples --env CirclingClustering-v0
+python Runners/Train/BallSDE.py --log_dir Hybrid_Score --data_name Hybrid_Examples --env CirclingClustering-v0 --n_samples 1e3
 ```
 
 
