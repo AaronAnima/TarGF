@@ -19,7 +19,7 @@ parser.add_argument("--log_dir", type=str)
 parser.add_argument("--env", type=str)  
 parser.add_argument("--action_type", type=str, default="vel")  
 parser.add_argument("--is_onebyone", type=str, default="False")  
-parser.add_argument("--n_boxes", default=7, type=int)  
+parser.add_argument("--num_objs", default=7, type=int)  
 parser.add_argument("--seed", default=0, type=int)  
 
 parser.add_argument("--eval_mode", type=str, default="full_metric") 
@@ -55,14 +55,14 @@ tb_path = f"./logs/{args.log_dir}/tb"
 if not os.path.exists(tb_path):
     os.makedirs(tb_path)
 
-num_per_class = args.n_boxes
+num_per_class = args.num_objs
 inp_mode = args.inp_mode
 is_state = (inp_mode == 'state')
 is_onebyone = (args.is_onebyone == 'True')
 
 ''' init my env '''
 MAX_VEL, dt, PB_FREQ, RADIUS, _ = get_simulation_constants()
-env = gym.make(args.env)
+env = gym.make(args.env, n_boxes=args.num_objs)
 env.seed(args.seed)
 env.reset()
 
@@ -76,13 +76,13 @@ with open(f'{exp_path}policy.pickle', 'rb') as f:
 EVAL_NUM = args.eval_num
 if args.eval_mode == 'full_metric':
     seeds = [args.seed + i*5 for i in range(5)]
-    full_metric(env, args.env, exp_path, policy, args.n_boxes, args.log_dir, args.eval_num, recover=(args.recover == 'True'), seeds=seeds)
+    full_metric(env, args.env, exp_path, policy, args.num_objs, args.log_dir, args.eval_num, recover=(args.recover == 'True'), seeds=seeds)
 elif args.eval_mode == 'analysis':
     eval_path = f"./logs/{args.log_dir}/analysis_{args.log_dir}/"
     if not os.path.exists(eval_path):
         os.makedirs(eval_path)
     analysis_score = policy.target_score
-    analysis(env, PDF_DICT[args.env], policy, args.n_boxes, eval_episodes=EVAL_NUM, save_path=f'{eval_path}')
+    analysis(env, PDF_DICT[args.env], policy, args.num_objs, eval_episodes=EVAL_NUM, save_path=f'{eval_path}')
 else:
     print('--- Eval Mode Error! ---')
     raise NotImplementedError

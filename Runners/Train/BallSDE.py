@@ -96,7 +96,7 @@ if __name__ == '__main__':
     parser.add_argument('--sampler', type=str, default='ode')
     parser.add_argument('--sigma', type=float, default=25.)
     parser.add_argument('--n_box', type=int, default=7)
-    parser.add_argument('--n_epoches', type=int, default=10000)
+    parser.add_argument('--n_epoches', type=int, default=50000)
     parser.add_argument('--n_samples', type=int, default=1000)
     parser.add_argument('--visualize_freq', type=int, default=10)
     parser.add_argument('--video_freq', type=int, default=100)

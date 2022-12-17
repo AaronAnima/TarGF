@@ -85,23 +85,23 @@ If you do not need to run this experiment, you can skip this procedure.
 We assign an argument `--log_dir $log_dir` for each experiment. The in-process results will be saved in `../logs/${log_dir}`.
 
 ### Training the Target Score Network
-**Note:** *To reproduce the results in the paper, please change `--n_samples 1e3` to `--n_samples 1e5` for all the ball rearrangement experiments.*
+**Note:** *To reproduce the results in the paper, please change `--n_samples 1000` to `--n_samples 100000` for all the ball rearrangement experiments.*
 
 For *Circling*:
 ```
-python Runners/Train/BallSDE.py --log_dir Circling_Score --data_name Circling_Examples --env Circling-v0 --n_samples 1e3
+python Runners/Train/BallSDE.py --log_dir Circling_Score --data_name Circling_Examples --env Circling-v0 --n_samples 1000
 ```
 
 
 For *Clustering*:
 ```
-python Runners/Train/BallSDE.py --log_dir Clustering_Score --data_name Clustering_Examples --env Clustering-v0 --n_samples 1e3
+python Runners/Train/BallSDE.py --log_dir Clustering_Score --data_name Clustering_Examples --env Clustering-v0 --n_samples 1000
 ```
 
 
 For *Circling+Clustering*:
 ```
-python Runners/Train/BallSDE.py --log_dir Hybrid_Score --data_name Hybrid_Examples --env CirclingClustering-v0 --n_samples 1e3
+python Runners/Train/BallSDE.py --log_dir Hybrid_Score --data_name Hybrid_Examples --env CirclingClustering-v0 --n_samples 1000
 ```
 
 

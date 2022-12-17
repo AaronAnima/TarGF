@@ -242,7 +242,7 @@ if __name__ == '__main__':
     MARGIN = 0.1
     RADIUS = RADIUS * (1 + MARGIN) / (WALL_BOUND - RADIUS)
     tau = dt * 10 # orca hyper parameter
-    env = gym.make(args.env)
+    env = gym.make(args.env, n_boxes=args.num_objs)
     env.seed(args.seed)
     env.reset(is_random=True)
 
