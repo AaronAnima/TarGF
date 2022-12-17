@@ -136,7 +136,7 @@ if __name__ == '__main__':
     writer = SummaryWriter(tb_path)
 
     ''' init my env '''
-    env = gym.make(args.env)
+    env = gym.make(args.env, n_boxes=args.n_box)
     env.seed(args.seed)
     env.reset()
 

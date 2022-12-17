@@ -299,7 +299,7 @@ if __name__ == "__main__":
 
     ''' init my env '''
     MAX_VEL, dt, PB_FREQ, RADIUS, _ = get_simulation_constants()
-    env = gym.make(args.env)
+    env = gym.make(args.env, n_boxes=args.n_boxes)
     env.seed(args.seed)
     env.reset()
 
