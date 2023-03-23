@@ -1,4 +1,4 @@
-# TarGF: Learning Target Gradient Field for Object Rearrangement 
+# TarGF: Learning Target Gradient Field to Rearrange Objects without Explicit Goal Specification
 
 [[Website](https://sites.google.com/view/targf/)] [[Arxiv](https://arxiv.org/abs/2209.00853)]
 
@@ -38,6 +38,12 @@ This repo is the official implementation of [TarGF](https://arxiv.org/abs/2209.0
 - Ubuntu >= 18.04
 - Anaconda3 
 - python >= 3.9
+- pytorch >= 1.11.0
+- pytorch_geometric >= 2.0.0
+- pybullet >= 3.1.0
+- tensorboard >= 2.6.0
+- pytorch_fid >= 0.2.0
+- imageio >= 2.9.0
 
 ### Install Global Dependencies
 
@@ -57,7 +63,7 @@ conda install pyg==2.0.4 -c pyg
 pip install opencv-python tensorboard pytorch_fid ipdb imageio 
 ```
 
-### Install *Ball Rearrangement* Dependencies
+### Install *Ball* Rearrangement Environment
 
 ```
 pip install gym pybullet
@@ -74,7 +80,7 @@ cd ../../
 ```
 
 
-### Install *Room Rearrangement* Dependencies
+### Install *Room Rearrangement* Environment
 
 Please follow the README in [this page](https://github.com/AaronAnima/TarGF/tree/main/Envs/Room).
 
@@ -87,36 +93,40 @@ We assign an argument `--log_dir $log_dir` for each experiment. The in-process r
 ### Training the Target Score Network
 **Note:** *To reproduce the results in the paper, please change `--n_samples 1000` to `--n_samples 100000` for all the ball rearrangement experiments.*
 
-For *Circling*:
+To rearrange balls into a circle (*Circling*):
 ```
 python Runners/Train/BallSDE.py --log_dir Circling_Score --data_name Circling_Examples --env Circling-v0 --n_samples 1000
 ```
 
 
-For *Clustering*:
+To cluster the balls into three groups according to the color (*Clustering*):
 ```
 python Runners/Train/BallSDE.py --log_dir Clustering_Score --data_name Clustering_Examples --env Clustering-v0 --n_samples 1000
 ```
 
 
-For *Circling+Clustering*:
+To rearrange balls into a circle and cluster the balls with the same color (*Circling+Clustering*):
 ```
 python Runners/Train/BallSDE.py --log_dir Hybrid_Score --data_name Hybrid_Examples --env CirclingClustering-v0 --n_samples 1000
 ```
 
 
-For *Room Rearrangement*:
+To rearrange the random placed furniture in a room (*Room Rearrangement*):
 ```
 python Runners/Train/RoomSDE.py --log_dir Room_Score --data_name UnShuffledRoomsMeta
 ```
 
-You can also visualise the in-process results via TensorBoard:
+You can also *visualise* the in-process results via `TensorBoard`:
 ```
 tensorboard --logdir ../logs/${log_dir}/tb --port 10020
 ```
 where `${log_dir}` denotes the argument following `--log_dir`.
 
-### Training SAC with TarGF
+### Learning to control with RL and TarGF (Optional)
+The TarGF provides reference actions and rewards in reinforcement learning (RL). Here we choose SAC as the RL algorithm.
+This is an optional procedure. If you do not need to run this experiment, you can skip this procedure. 
+You can use the ORCA planner to control the balls in the *Ball Rearrangement* environment.
+Note that ORCA only supports *Ball Rearrangement* environment. For *Room Rearrangement*, please use the *TarGF (SAC)*.
 **Note:** *To reproduce the results in the paper, please change `--residual_t0 0.01` to `--residual_t0 0.1` for all the ball rearrangement experiments.*
 
 For *Circling*:
@@ -206,18 +216,20 @@ The results will be saved in `../logs/analysis_${log_dir}`.
 
 ## Citation
 ```
-@inproceedings{wu2022targf,
-  title     = {Tar{GF}: Learning Target Gradient Field for Object Rearrangement},
-  author    = {Mingdong Wu and fangwei zhong and Yulong Xia and Hao Dong},
-  booktitle = {Thirty-Sixth Conference on Neural Information Processing Systems},
-  year      = {2022},
-  url       = {https://openreview.net/forum?id=Euv1nXN98P3}
+@inproceedings{
+wu2022targf,
+title={Tar{GF}: Learning Target Gradient Field for Object Rearrangement},
+author={Mingdong Wu and Fangwei Zhong and Yulong Xia and Hao Dong},
+booktitle={Advances in Neural Information Processing Systems},
+editor={Alice H. Oh and Alekh Agarwal and Danielle Belgrave and Kyunghyun Cho},
+year={2022},
+url={https://openreview.net/forum?id=Euv1nXN98P3}
 }
 
 ```
 
 ## Contact
-If you have any suggestion or questions, please get in touch at [wmingd@pku.edu.cn](wmingd@pku.edu.cn) or [zfw1226@gmail.com](zfw1226@gmail.com).
+If you have any suggestion or questions, please get in touch at [wmingd@pku.edu.cn](wmingd@pku.edu.cn) or [zfw@pku.edu.cn](zfw@pku.edu.cn).
 
 ## LICENSE
 TarGF has an MIT license, as found in the [LICENSE](./LICENSE) file.
