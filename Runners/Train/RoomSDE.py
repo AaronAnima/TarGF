@@ -15,7 +15,7 @@ from torch_geometric.loader import DataLoader
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from room_utils import exists_or_mkdir, split_dataset, GraphDataset
 from Algorithms.RoomSDE import marginal_prob_std, diffusion_coeff, loss_fn_cond, cond_ode_vel_sampler
-from Networks.RoomSDENet import ScoreWrapper, CondScoreModelGNN
+from Networks.RoomSDENet import CondScoreModelGNN
 from Envs.Room.RoomArrangement import SceneSampler 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -72,7 +72,6 @@ if __name__ == '__main__':
     parser.add_argument('--data_name', type=str)
     parser.add_argument('--test_decay', type=str, default='False')
     parser.add_argument('--room_type', type=str, default='bedroom')
-    parser.add_argument('--score_mode', type=str, default='target')
     parser.add_argument('--n_epoches', type=int, default=10000)
     parser.add_argument('--eval_freq', type=int, default=10)
     parser.add_argument('--batch_size', type=int, default=64)
@@ -125,7 +124,8 @@ if __name__ == '__main__':
         marginal_prob_std_fn,
         hidden_dim=args.hidden_dim,
         embed_dim=args.embed_dim,
-        wall_dim=1, mode=args.score_mode)
+        wall_dim=1, 
+    )
 
     score.to(device)
 
@@ -155,9 +155,7 @@ if __name__ == '__main__':
             test_batch = next(iter(dataloader_test))
             with torch.no_grad():
                 t0 = args.t0
-                dual_score = ScoreWrapper(tar_score=score if args.score_mode == 'target' else None,
-                                       sup_score=score if args.score_mode == 'support' else None)
-                in_process_sample_ode_vel, res_ode_vel = cond_ode_vel_sampler(dual_score,
+                in_process_sample_ode_vel, res_ode_vel = cond_ode_vel_sampler(score,
                                                                               marginal_prob_std_fn,
                                                                               diffusion_coeff_fn,
                                                                               test_batch,

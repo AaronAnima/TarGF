@@ -107,7 +107,7 @@ def score_to_action(scores, states_x):
     return torch.cat([pos_grad, ori_grad], dim=-1)
 
 def cond_ode_vel_sampler(
-        dual_score,
+        score_fn,
         marginal_prob_std,
         diffusion_coeff,
         test_batch,
@@ -128,23 +128,13 @@ def cond_ode_vel_sampler(
     obj_batch = obj_batch.to(device)
 
     # Create the latent code
-    mode = dual_score.mode()
-    if mode == 'tar':
-        init_x = torch.randn_like(obj_batch.x, device=device) * marginal_prob_std(t0)
-    elif mode == 'sup':
-        init_x = obj_batch.x + torch.randn_like(obj_batch.x, device=device) * 0.2
-    elif mode == 'dual':
-        init_x = obj_batch.x
-    else:
-        init_x = None
-        print('############### Mode Error! #################')
+    init_x = torch.randn_like(obj_batch.x, device=device) * marginal_prob_std(t0)
+    
 
     def score_eval_wrapper(sample, time_steps):
         """A wrapper of the score-based model for use by the ODE solver."""
         with torch.no_grad():
-            score = dual_score.inference(sample, time_steps, sup_rate, is_langevin=False)
-            # check score norm
-            # print(torch.sqrt(torch.sum(score**2)) / math.sqrt(score.shape[0]*score.shape[1]))
+            score = score_fn(sample, time_steps)
         return score
 
     def ode_func(t, x):
@@ -176,7 +166,6 @@ def cond_ode_vel_sampler(
 
         ori_vel = velocity[:, 2:4]
         cur_n = x[:, 2:4]  # [sin(x), cos(x)]
-        # set_trace()
         assert torch.abs(torch.sum((torch.sum(cur_n ** 2, dim=-1) - 1))) < 1e7
         cur_n = torch.cat([-cur_n[:, 0:1], cur_n[:, 1:2]], dim=-1)  # [-sin(x), cos(x)]
         grad_theta = torch.sum(torch.cat([ori_vel[:, 1:2], ori_vel[:, 0:1]], dim=-1) * cur_n, dim=-1, keepdim=True)
@@ -189,105 +178,7 @@ def cond_ode_vel_sampler(
         new_ori = torch.cat([sx * cd + cx * sd, cx * cd - sx * sd], dim=-1)
         new_ori /= torch.sqrt(torch.sum(new_ori ** 2, dim=-1, keepdim=True))
 
-        # 合龙
-        x = torch.cat([new_pos, new_ori], dim=-1)
-
-        xs.append(x.cpu().unsqueeze(0).clone())
-
-        if (idx + 1) % decay_freq == 0 and is_decay:
-            scale *= decay_rate
-
-    return torch.cat(xs, dim=0), xs[-1]
-
-
-def cond_langevin_sampler(
-        dual_score,
-        marginal_prob_std,
-        diffusion_coeff,
-        test_batch,
-        langevin_eps=1e-2,
-        t0=1.,
-        eps=1e-3,
-        num_steps=100,
-        batch_size=1,
-        max_pos_vel=0.4,
-        max_ori_vel=0.2,
-        scale=1e-4,
-        is_decay=False,
-        decay_rate=0.95,
-        device='cuda',
-        sup_rate=1,
-):
-    wall_batch, obj_batch, _ = test_batch
-    wall_batch = wall_batch.to(device)
-    obj_batch = obj_batch.to(device)
-
-    # Create the latent code
-    mode = dual_score.mode()
-    if mode == 'tar':
-        init_x = torch.randn_like(obj_batch.x, device=device) * marginal_prob_std(t0)
-    elif mode == 'sup':
-        init_x = obj_batch.x + torch.randn_like(obj_batch.x, device=device) * 0.2
-    elif mode == 'dual':
-        init_x = obj_batch.x
-    else:
-        init_x = None
-        print('############### Mode Error! #################')
-
-    def score_eval_wrapper(sample, time_steps):
-        """A wrapper of the score-based model for use by the ODE solver."""
-        with torch.no_grad():
-            score = dual_score.inference(sample, time_steps, sup_rate, is_langevin=True)
-            # check score norm
-            # print(torch.sqrt(torch.sum(score**2)) / math.sqrt(score.shape[0]*score.shape[1]))
-        return score
-
-    def ode_func(t, x):
-        """The ODE function for use by the ODE solver."""
-        cur_obj_batch = copy.deepcopy(obj_batch)
-        cur_obj_batch.x = torch.tensor(x.reshape(-1, 4)).to(device).float()
-        time_steps = torch.ones(batch_size, device=device).unsqueeze(-1) * t
-        time_steps = time_steps[obj_batch.batch]
-
-        tar_grad, sup_grad = score_eval_wrapper((wall_batch, cur_obj_batch), time_steps)
-        z = torch.randn_like(obj_batch.x, device=device)
-        return langevin_eps * tar_grad + math.sqrt(2 * langevin_eps) * z + sup_grad * sup_rate
-
-    t_eval = np.linspace(t0, eps, num_steps)
-
-    xs = []
-    x = init_x
-    x[:, 2:4] /= torch.sqrt(torch.sum(x[:, 2:4] ** 2, dim=-1, keepdim=True))
-
-    # linear decay freq
-    decay_freq = 10
-    import time
-    for idx, t in enumerate(t_eval):
-        velocity = ode_func(t, x)  # [bs, 4]
-        pos_vel = velocity[:, 0:2]
-        # max_pos_vel_norm = torch.sqrt(torch.max(torch.sum(pos_vel**2, dim=-1)))
-        # pos_vel /= max_pos_vel_norm
-        # pos_vel *= max_pos_vel # RL action, pos_vel
-        pos_vel *= 1
-        delta_pos = pos_vel * scale
-        new_pos = x[:, 0:2] + delta_pos
-
-        ori_vel = velocity[:, 2:4]
-        cur_n = x[:, 2:4]  # [sin(x), cos(x)]
-        # set_trace()
-        assert torch.abs(torch.sum((torch.sum(cur_n ** 2, dim=-1) - 1))) < 1e7
-        cur_n = torch.cat([-cur_n[:, 0:1], cur_n[:, 1:2]], dim=-1)  # [-sin(x), cos(x)]
-        grad_theta = torch.sum(torch.cat([ori_vel[:, 1:2], ori_vel[:, 0:1]], dim=-1) * cur_n, dim=-1, keepdim=True)
-        # ori_vel = grad_theta*max_ori_vel / torch.max(torch.abs(grad_theta)) # RL action, ori vel
-        ori_vel = grad_theta * 1
-        delta_ori = ori_vel * scale
-        cd = torch.cos(delta_ori)
-        sd = torch.sin(delta_ori)
-        cx = x[:, 3:4]
-        sx = x[:, 2:3]
-        new_ori = torch.cat([sx * cd + cx * sd, cx * cd - sx * sd], dim=-1)
-        new_ori /= torch.sqrt(torch.sum(new_ori ** 2, dim=-1, keepdim=True))
-
+        
         x = torch.cat([new_pos, new_ori], dim=-1)
 
         xs.append(x.cpu().unsqueeze(0).clone())

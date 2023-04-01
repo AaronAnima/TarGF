@@ -22,7 +22,7 @@ class MASAC(object):
             discount=0.99,
             tau=0.005,
             policy_freq=1,
-            num_boxes=10,
+            num_objs=21,
             knn_actor=10,
             knn_critic=15,
             hidden_dim=128,
@@ -31,13 +31,12 @@ class MASAC(object):
             init_temperature=0.1,
             is_residual=True,
             learnable_temperature=True,
-            model_type='tanh',
     ):
         self.actor = ActorTanh(
             log_std_bounds=(-5, 2),
             max_action=max_action,
             target_score=target_score,
-            num_boxes=num_boxes,
+            num_objs=num_objs,
             knn=knn_actor,
             is_residual=is_residual,
             hidden_dim=hidden_dim,
@@ -48,7 +47,7 @@ class MASAC(object):
 
         self.critic = CriticTanh(
             target_score=target_score,
-            num_boxes=num_boxes,
+            num_objs=num_objs,
             knn=knn_critic,
             is_residual=is_residual,
             hidden_dim=hidden_dim,
@@ -65,7 +64,7 @@ class MASAC(object):
         self.log_alpha.requires_grad = True
 
         # set target entropy to -|A|
-        self.target_entropy = -num_boxes*3*2 # action_dim
+        self.target_entropy = -num_objs*2 # action_dim
         self.log_alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=3e-4, betas=(0.9, 0.999))
 
         self.max_action = max_action
@@ -169,7 +168,7 @@ class MASAC(object):
 
 
 class ReplayBuffer(object):
-    def __init__(self, state_dim, action_dim, n_nodes, is_ema=True, mar=0.90, queue_len=10, max_size=int(1e6), centralized=True):
+    def __init__(self, state_dim, action_dim, num_objs, max_size=int(1e6), centralized=True):
         self.max_size = max_size
         self.ptr = 0
         self.size = 0
@@ -177,31 +176,12 @@ class ReplayBuffer(object):
         self.state = np.zeros((max_size, state_dim))
         self.action = np.zeros((max_size, action_dim))
         self.next_state = np.zeros((max_size, state_dim))
-        self.reward = np.zeros((max_size, 1 if centralized else n_nodes))
+        self.reward = np.zeros((max_size, 1 if centralized else num_objs))
         self.not_done = np.zeros((max_size, 1))
-        # EMA
-        self.queue_len = queue_len
-        self.queue = deque(maxlen=queue_len)
-        self.clear_queue()
-        self.mar = mar
-        self.is_ema = is_ema
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    def clear_queue(self):
-        self.queue.clear()
-
-    def get_ema(self):
-        reward = 0
-        for idx, item in enumerate(self.queue):
-            reward += item / len(self.queue)
-        return reward
-
     def add(self, state, action, next_state, reward, done):
-        if self.is_ema:
-            # smoothing the reward
-            self.queue.append(reward)
-            reward = self.get_ema()
 
         self.state[self.ptr] = state
         self.action[self.ptr] = action

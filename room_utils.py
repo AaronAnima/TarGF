@@ -73,17 +73,6 @@ class RewardNormalizer(object):
         return reward
 
 
-def chamfer_dist(x, y, metric='l2'):
-    x = x.reshape(-1, 2)
-    y = y.reshape(-1, 2)
-    # x: [nx, dim], y: [ny, dim]
-    x_nn = NearestNeighbors(n_neighbors=1, leaf_size=1, algorithm='kd_tree', metric=metric).fit(x)
-    min_y_to_x = x_nn.kneighbors(y)[0]
-    y_nn = NearestNeighbors(n_neighbors=1, leaf_size=1, algorithm='kd_tree', metric=metric).fit(y)
-    min_x_to_y = y_nn.kneighbors(x)[0]
-    dist = np.mean(min_y_to_x) + np.mean(min_x_to_y)
-    return dist
-
 def my_dist(state1, state2):
     # state1: [num_obj, 7]
     # state2: [num_obj, 7]

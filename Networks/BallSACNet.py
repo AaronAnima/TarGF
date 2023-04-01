@@ -2,6 +2,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from ipdb import set_trace
 
 from torch_geometric.nn import knn_graph
 from torch_geometric.nn import EdgeConv
@@ -12,15 +13,15 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class ActorTanh(nn.Module):
-    def __init__(self, log_std_bounds, target_score, t0=0.01, hidden_dim=128, embed_dim=64, max_action=None, num_boxes=10, knn=10, is_residual=True):
+    def __init__(self, log_std_bounds, target_score, t0=0.01, hidden_dim=128, embed_dim=64, max_action=None, num_objs=21, knn=10, is_residual=True):
         super(ActorTanh, self).__init__()
         self.knn = knn
-        self.num_boxes = num_boxes*3
+        self.num_objs = num_objs
         self.max_action = max_action
         self.t0 = t0
         self.is_residual = is_residual
         self.target_score = target_score
-        self.init_lin = nn.Sequential(
+        self.spatial_lin = nn.Sequential(
             nn.Linear(4, hidden_dim),
             nn.Tanh(),
             nn.Linear(hidden_dim, hidden_dim),
@@ -46,27 +47,28 @@ class ActorTanh(nn.Module):
         self.log_std_bounds = log_std_bounds
 
     def forward(self, state_inp):
+        """
+        state_inp: [bs, num_objs * 3]
+        """
         # convert normal batch to graph
         k = self.knn
         bs = state_inp.shape[0]
         # prepare target scores
-        tar_scores = self.target_score.get_score(state_inp, t0=self.t0, is_numpy=False, is_norm=False, empty=(not self.is_residual)) # [num_nodes, 2]
+        tar_scores = self.target_score.get_score(state_inp, t0=self.t0, is_numpy=False, is_norm=False, empty=(not self.is_residual)) 
 
-        state_inp = state_inp.view(-1, 2)
-        samples_batch = torch.tensor([i for i in range(bs) for _ in range(self.num_boxes)], dtype=torch.int64).to(device)
-        x, edge_index = state_inp, knn_graph(state_inp, k=k, batch=samples_batch)
+        # pre-pro data for message passing
+        positions = state_inp.view(bs, self.num_objs, 3)[:, :, :2].view(-1, 2)
+        categories = state_inp.view(bs, self.num_objs, 3)[:, :, -1:].view(-1).long()
+        samples_batch = torch.tensor([i for i in range(bs) for _ in range(self.num_objs)], dtype=torch.int64).to(device)
+        x, edge_index = positions, knn_graph(positions, k=k, batch=samples_batch)
 
-        # get category_feature
-        categories = torch.cat([torch.ones(self.num_boxes//3, device=device) * c for c in [0, 1, 2]], dim=0).repeat(x.shape[0]//self.num_boxes)
-        categories = categories.long().to(device)
-        class_feature = self.embed_category(categories)
-
-        # get overall feature
+        # encode init feature
+        class_embed = self.embed_category(categories)
         # note that it is better to normalise the tar_scores to [-1, 1]
-        init_feature = torch.tanh(torch.cat([self.init_lin(torch.cat([x, torch.tanh(tar_scores)], -1)), class_feature], dim=-1))
+        spatial_inp = torch.cat([x, torch.tanh(tar_scores)], -1)
+        spatial_embed = self.spatial_lin(spatial_inp)
+        init_feature = torch.tanh(torch.cat([spatial_embed, class_embed], dim=-1))
 
-        # get sigma feature
-        # init_feature: [bs, num_nodes, dim]
         ''' GNN '''
         x = torch.tanh(self.conv1(init_feature, edge_index))
         mu, log_std = self.shared_actor(x).chunk(2, dim=-1)
@@ -75,10 +77,10 @@ class ActorTanh(nn.Module):
         log_std = torch.tanh(log_std)
         log_std_min, log_std_max = self.log_std_bounds
         log_std = log_std_min + 0.5 * (log_std_max - log_std_min) * (log_std+1)
-        std = log_std.exp().view(-1, 2*self.num_boxes)
+        std = log_std.exp().view(-1, 2*self.num_objs)
 
         # mix with tar vel func
-        mu = self.max_action * torch.tanh(mu.contiguous().view(-1, 2*self.num_boxes))
+        mu = self.max_action * torch.tanh(mu.contiguous().view(-1, 2*self.num_objs))
         if self.is_residual:
             mu += self.max_action * torch.tanh(tar_scores.view(bs, -1))
         dist = SquashedNormal(mu, std) 
@@ -86,9 +88,9 @@ class ActorTanh(nn.Module):
 
 
 class CriticTanh(nn.Module):
-    def __init__(self, target_score, t0=0.01, hidden_dim=128, embed_dim=64, is_residual=False, num_boxes=10, knn=15-1):
+    def __init__(self, target_score, num_objs=21, num_classes=3, t0=0.01, hidden_dim=128, embed_dim=64, is_residual=False, knn=21-1):
         super(CriticTanh, self).__init__()
-        self.num_boxes = num_boxes*3
+        self.num_objs = num_objs
         self.knn = knn
         self.t0 = t0
 
@@ -96,13 +98,13 @@ class CriticTanh(nn.Module):
         self.is_residual = is_residual
 
         # Q1 architecture
-        self.init_lin_1 = nn.Sequential(
+        self.spatial_lin_1 = nn.Sequential(
             nn.Linear(6, hidden_dim),
             nn.Tanh(),
             nn.Linear(hidden_dim, hidden_dim),
         )
         self.embed_category_1 = nn.Sequential(
-            nn.Embedding(3, embed_dim),
+            nn.Embedding(num_classes, embed_dim),
             nn.Tanh(),
             nn.Linear(embed_dim, embed_dim)
         )
@@ -113,14 +115,14 @@ class CriticTanh(nn.Module):
         )
         self.conv1_1 = EdgeConv(self.mlp1_1)
 
-        self.shared_critic_1 = nn.Sequential(
+        self.tail_1 = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim),
             nn.Tanh(),
             nn.Linear(hidden_dim, 1),
         )
 
         # Q2 architecture
-        self.init_lin_2 = nn.Sequential(
+        self.spatial_lin_2 = nn.Sequential(
             nn.Linear(6, hidden_dim),
             nn.Tanh(),
             nn.Linear(hidden_dim, hidden_dim),
@@ -136,7 +138,7 @@ class CriticTanh(nn.Module):
             nn.Linear(hidden_dim, hidden_dim),
         )
         self.conv1_2 = EdgeConv(self.mlp1_2)
-        self.shared_critic_2 = nn.Sequential(
+        self.tail_2 = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim),
             nn.Tanh(),
             nn.Linear(hidden_dim, 1),
@@ -148,60 +150,45 @@ class CriticTanh(nn.Module):
         return q1, q2
 
     def Q1(self, state, action):
-        tar_scores = self.target_score.get_score(state, t0=self.t0, is_numpy=False, is_norm=False, empty=(not self.is_residual)) # [num_nodes, 2]
-        state_inp = torch.cat([state.view(-1, self.num_boxes, 2), action.view(-1, self.num_boxes, 2)], -1)
-
-        # convert normal batch to graph
         k = self.knn
-        bs = state_inp.shape[0]
-        state_inp = state_inp.view(-1, 4) 
-        samples_batch = torch.tensor([i for i in range(bs) for _ in range(self.num_boxes)], dtype=torch.int64).to(device)
-        x, edge_index = state_inp, knn_graph(state_inp, k=k, batch=samples_batch)
+        bs = state.shape[0]
+        positions = state.view(bs, self.num_objs, 3)[:, :, :2].view(-1, 2)
+        categories = state.view(bs, self.num_objs, 3)[:, :, -1:].view(-1).long()
+        samples_batch = torch.tensor([i for i in range(bs) for _ in range(self.num_objs)], dtype=torch.int64).to(device)
+        x, edge_index = positions, knn_graph(positions, k=k, batch=samples_batch)
 
-        # get category_feature
-        categories = torch.cat([torch.ones(self.num_boxes//3, device=device) * c for c in [0, 1, 2]], dim=0).repeat(x.shape[0]//self.num_boxes)
-        categories = categories.long().to(device)
-        class_feature = self.embed_category_1(categories)
+        tar_scores = self.target_score.get_score(state, t0=self.t0, is_numpy=False, is_norm=False, empty=(not self.is_residual))
+        spatial_inp = torch.cat([positions, action.view(-1, 2), torch.tanh(tar_scores)], -1)
 
-        # get overall feature
-        init_feature = self.init_lin_1(torch.cat([torch.tanh(tar_scores), x], dim=-1))
-        h = torch.cat([init_feature, class_feature], dim=-1)
-        h = torch.tanh(h)
+        # get init feature
+        spatial_embed = self.spatial_lin_1(spatial_inp)
+        class_embed = self.embed_category_1(categories)
+        h = torch.tanh(torch.cat([spatial_embed, class_embed], dim=-1))
 
         # get sigma feature
         x = torch.tanh(self.conv1_1(h, edge_index))
-        out = self.shared_critic_1(x)
+        out = self.tail_1(x)
         return out.view(bs, -1)
 
     def Q2(self, state, action):
-        # state: [bs, n_obj*2], action: [bs, n_obj*2]
-        tar_scores = self.target_score.get_score(state, t0=self.t0, is_numpy=False, is_norm=False, empty=(not self.is_residual)) # [num_nodes, 2]
-        state_inp = torch.cat([state, action], 1)
-        # convert normal batch to graph
         k = self.knn
-        bs = state_inp.shape[0]
-        state_inp = state_inp.view(-1, 4)
-        samples_batch = torch.tensor([i for i in range(bs) for _ in range(self.num_boxes)], dtype=torch.int64).to(device)
-        x, edge_index = state_inp, knn_graph(state_inp, k=k, batch=samples_batch)
+        bs = state.shape[0]
+        positions = state.view(bs, self.num_objs, 3)[:, :, :2].view(-1, 2)
+        categories = state.view(bs, self.num_objs, 3)[:, :, -1:].view(-1).long()
+        samples_batch = torch.tensor([i for i in range(bs) for _ in range(self.num_objs)], dtype=torch.int64).to(device)
+        x, edge_index = positions, knn_graph(positions, k=k, batch=samples_batch)
 
-        # get category_feature
-        categories = torch.cat([torch.ones(self.num_boxes//3, device=device) * c for c in [0, 1, 2]], dim=0).repeat(x.shape[0]//self.num_boxes)
-        categories = categories.long().to(device)
-        class_feature = self.embed_category_2(categories)
+        tar_scores = self.target_score.get_score(state, t0=self.t0, is_numpy=False, is_norm=False, empty=(not self.is_residual)) 
+        spatial_inp = torch.cat([positions, action.view(-1, 2), torch.tanh(tar_scores)], -1).view(-1, 2+2+2) 
 
-        # get overall feature
-        init_feature = self.init_lin_2(torch.cat([torch.tanh(tar_scores), x], dim=-1))
-        h = torch.cat([init_feature, class_feature], dim=-1)
-        h = torch.tanh(h)
+        # get init feature
+        spatial_embed = self.spatial_lin_2(spatial_inp)
+        class_embed = self.embed_category_2(categories)
+        h = torch.tanh(torch.cat([spatial_embed, class_embed], dim=-1))
 
-
-        # 1. message passing
-        # init_feature: [bs*n_agents, hidden_dim]
-        x = torch.tanh(self.conv1_2(h, edge_index)) # [bs*n_agents, hidden_dim] -> [bs*n_agents, hidden_dim]
-
-        # 2. pass through shared-critic(2*fc)
-        out = self.shared_critic_2(x) # [bs*n_agents, hidden_dim] -> [bs*n_agents, 1]
-
+        # get sigma feature
+        x = torch.tanh(self.conv1_2(h, edge_index))
+        out = self.tail_2(x)
         return out.view(bs, -1)
 
 

@@ -11,7 +11,7 @@ The environments used in this work are demonstrated as follows:
 
 | *Circling* | *Clustering* | *Circling + Clustering* | *Room Rearrangement* |
 |  ----  | ----  | ----  | ----  |
-|<img src="Demos/circling_demo.gif" align="middle" width="160"/>  | <img src="Demos/clustering_demo.gif" align="middle" width="160"/>  | <img src="Demos/hybrid_demo.gif" align="middle" width="160"/>    | <img src="Demos/room_demo.gif" align="middle" width="160"/> |
+|<img src="Demos/circling_demo.gif" align="middle" width="160"/>  | <img src="Demos/clustering_demo.gif" align="middle" width="160"/>  | <img src="Demos/CircleCluster_demo.gif" align="middle" width="160"/>    | <img src="Demos/room_demo.gif" align="middle" width="160"/> |
 
 This repo is the official implementation of [TarGF](https://arxiv.org/abs/2209.00853). Contents of this repo are as follows:
 
@@ -91,23 +91,23 @@ If you do not need to run this experiment, you can skip this procedure.
 We assign an argument `--log_dir $log_dir` for each experiment. The in-process results will be saved in `../logs/${log_dir}`.
 
 ### Training the Target Score Network
-**Note:** *To reproduce the results in the paper, please change `--n_samples 1000` to `--n_samples 100000` for all the ball rearrangement experiments.*
+**Note:** *To reproduce the results in the paper, please change `--n_samples 10000` to `--n_samples 100000` for all the ball rearrangement experiments.*
 
 To rearrange balls into a circle (*Circling*):
 ```
-python Runners/Train/BallSDE.py --log_dir Circling_Score --data_name Circling_Examples --env Circling-v0 --n_samples 1000
+python Runners/Train/BallSDE.py --log_dir Circle_Score --data_name Circle_Examples --pattern Circle --num_per_class 7 --num_classes 3 --n_samples 10000
 ```
 
 
 To cluster the balls into three groups according to the color (*Clustering*):
 ```
-python Runners/Train/BallSDE.py --log_dir Clustering_Score --data_name Clustering_Examples --env Clustering-v0 --n_samples 1000
+python Runners/Train/BallSDE.py --log_dir Cluster_Score --data_name Cluster_Examples --pattern Cluster --num_per_class 7 --num_classes 3 --n_samples 10000
 ```
 
 
 To rearrange balls into a circle and cluster the balls with the same color (*Circling+Clustering*):
 ```
-python Runners/Train/BallSDE.py --log_dir Hybrid_Score --data_name Hybrid_Examples --env CirclingClustering-v0 --n_samples 1000
+python Runners/Train/BallSDE.py --log_dir CircleCluster_Score --data_name CircleCluster_Examples --pattern CircleCluster --num_per_class 7 --num_classes 3 --n_samples 10000
 ```
 
 
@@ -131,19 +131,19 @@ Note that ORCA only supports *Ball Rearrangement* environment. For *Room Rearran
 
 For *Circling*:
 ```
-python Runners/Train/BallSAC.py --log_dir Circling_SAC --env Circling-v0 --lambda_col 3.0 --lambda_sim 1.0 --score_exp Circling_Score --residual_t0 0.01 
+python Runners/Train/BallSAC.py --log_dir Circle_SAC --pattern Circle --num_per_class 7 --num_classes 3 --lambda_col 3.0 --lambda_sim 1.0 --score_exp Circle_Score --residual_t0 0.01 
 ```
 
 
 For *Clustering*:
 ```
-python Runners/Train/BallSAC.py --log_dir Clustering_SAC --env Clustering-v0 --lambda_col 5.0 --lambda_sim 1.0 --score_exp Clustering_Score --residual_t0 0.01 
+python Runners/Train/BallSAC.py --log_dir Cluster_SAC --pattern Cluster --num_per_class 7 --num_classes 3 --lambda_col 5.0 --lambda_sim 1.0 --score_exp Cluster_Score --residual_t0 0.01 
 ```
 
 
 For *Circling+Clustering*:
 ```
-python Runners/Train/BallSAC.py --log_dir Hybrid_SAC --env CirclingClustering-v0 --lambda_col 5.0 --lambda_sim 1.0 --score_exp Hybrid_Score --residual_t0 0.01 
+python Runners/Train/BallSAC.py --log_dir CircleCluster_SAC --pattern Circle --num_per_class 7 --num_classes 3 --lambda_col 5.0 --lambda_sim 1.0 --score_exp CircleCluster_Score --residual_t0 0.01 
 ```
 
 
@@ -164,19 +164,19 @@ We also assign an argument `--log_dir $log_dir` for each experiment. The metrics
 For *Circling*:
 
 ```
-python Runners/Eval/BallEvalORCA.py --log_dir Circling_ORCA --env Circling-v0 --score_exp Circling_Score --eval_mode full_metric --residual_t0 0.01 --is_decay False
+python Runners/Eval/BallEvalPolicy.py --log_dir Circle_ORCA --pattern Circle --num_per_class 7 --num_classes 3 --policy_mode ORCA --score_exp Circle_Score --eval_mode full_metric --residual_t0 0.01 --is_decay False
 ```
 
 
 For *Clustering*:
 ```
-python Runners/Eval/BallEvalORCA.py --log_dir Clustering_ORCA --env Clustering-v0 --score_exp Clustering_Score --eval_mode full_metric --residual_t0 0.01 --is_decay False
+python Runners/Eval/BallEvalPolicy.py --log_dir Cluster_ORCA --pattern Cluster --num_per_class 7 --num_classes 3 --policy_mode ORCA --score_exp Cluster_Score --eval_mode full_metric --residual_t0 0.01 --is_decay False
 ```
 
 
 For *Circling+Clustering*:
 ```
-python Runners/Eval/BallEvalORCA.py --log_dir Hybrid_ORCA --env CirclingClustering-v0 --score_exp Hybrid_Score --eval_mode full_metric --residual_t0 0.01 --is_decay False
+python Runners/Eval/BallEvalPolicy.py --log_dir CircleCluster_ORCA --pattern CircleCluster --num_per_class 7 --num_classes 3 --policy_mode ORCA --score_exp CircleCluster_Score --eval_mode full_metric --residual_t0 0.01 --is_decay False
 ```
 
 To obtain qualitative results, change the `--eval_mode full_metric` to `--eval_mode analysis`.
@@ -189,25 +189,25 @@ The visualisations will be saved in `../logs/${log_dir}`
 
 For *Circling*:
 ```
-python Runners/Eval/BallEvalSAC.py --log_dir Circling_SAC --env Circling-v0 --score_exp Circling_Score --eval_mode full_metric --residual_t0 0.01
+python Runners/Eval/BallEvalPolicy.py --log_dir Circling_SAC --pattern Circle --num_per_class 7 --num_classes 3 --policy_mode SAC --score_exp Circling_Score --eval_mode full_metric --residual_t0 0.01
 ```
 
 
 For *Clustering*:
 ```
-python Runners/Eval/BallEvalSAC.py --log_dir Clustering_SAC --env Clustering-v0 --score_exp Clustering_Score --eval_mode full_metric --residual_t0 0.01
+python Runners/Eval/BallEvalPolicy.py --log_dir Clustering_SAC --pattern Cluster --num_per_class 7 --num_classes 3 --policy_mode SAC --score_exp Clustering_Score --eval_mode full_metric --residual_t0 0.01
 ```
 
 
 For *Circling+Clustering*:
 ```
-python Runners/Eval/BallEvalSAC.py --log_dir Hybrid_SAC --env CirclingClustering-v0 --score_exp Hybrid_Score --eval_mode full_metric --residual_t0 0.01
+python Runners/Eval/BallEvalPolicy.py --log_dir CircleCluster_SAC --pattern CircleCluster --num_per_class 7 --num_classes 3 --policy_mode SAC --score_exp CircleCluster_Score --eval_mode full_metric --residual_t0 0.01
 ```
 
 
 For *Room Rearrangement*:
 ```
-python Runners/Eval/RoomEvalSAC.py --log_dir Room_SAC --score_exp Room_Score --save_video True
+python Runners/Eval/RoomEvalPolicy.py --log_dir Room_SAC --score_exp Room_Score --save_video True
 ```
 
 To obtain qualitative results of *Ball Rearrangmenet*, change the `--eval_mode full_metric` to `--eval_mode analysis`.
