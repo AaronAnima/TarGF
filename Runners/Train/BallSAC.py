@@ -404,8 +404,7 @@ if __name__ == "__main__":
                 if eval_infos['DL']['mu'] > best_delta_likelihood:
                     best_delta_likelihood = eval_infos['DL']['mu']
                     policy.save(f"{best_ckpt_path}")
-
-                visualize_states(np.stack(eval_infos['Results'][0:eval_col**2]), env, writer, episode_num, nrow=eval_col, suffix='episode last state')
+                visualize_states(np.stack(eval_infos['Results'][0:eval_col**2]), env, writer, epoch=episode_num, nrow=eval_col, suffix='episode last state')
                 print(f'log_dir: {args.log_dir}')
 
             # reset again, as train and eval share the same env
