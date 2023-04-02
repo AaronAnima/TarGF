@@ -32,6 +32,8 @@ This repo is the official implementation of [TarGF](https://arxiv.org/abs/2209.0
 - [License](#License)
 
 
+**[2023.4.2] Update: we are refactoring Ebor, the bug will be fixed before 2023.4.3**
+
 ## Installation
 
 ### Requirements

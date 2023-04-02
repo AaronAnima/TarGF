@@ -191,7 +191,7 @@ if __name__ == '__main__':
             tau=tau, 
             t0=args.orca_t0, 
             knn=args.knn_orca, 
-            horizon=args.horizon,
+            horizon=horizon,
         )
     else:
         raise NotImplementedError

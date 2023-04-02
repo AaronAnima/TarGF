@@ -203,6 +203,6 @@ def analysis(eval_env, pdf_func, policy, save_path=None, eval_episodes=100):
 
         # save video
         video_duration = 5
-        save_video(eval_env, video_states, save_path=f'{save_path}video_{idx}', fps=len(video_states) // video_duration, suffix='gif') # save as gifs
+        save_video(eval_env, video_states, save_path=f'{save_path}video_{idx}', fps=len(video_states) // video_duration, suffix='mp4') # save as gifs
 
 
