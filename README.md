@@ -11,7 +11,7 @@ The environments used in this work are demonstrated as follows:
 
 | *Circling* | *Clustering* | *Circling + Clustering* | *Room Rearrangement* |
 |  ----  | ----  | ----  | ----  |
-|<img src="Demos/circling_demo.gif" align="middle" width="160"/>  | <img src="Demos/clustering_demo.gif" align="middle" width="160"/>  | <img src="Demos/CircleCluster_demo.gif" align="middle" width="160"/>    | <img src="Demos/room_demo.gif" align="middle" width="160"/> |
+|<img src="Demos/circling_demo.gif" align="middle" width="160"/>  | <img src="Demos/clustering_demo.gif" align="middle" width="160"/>  | <img src="Demos/circlecluster_demo.gif" align="middle" width="160"/>    | <img src="Demos/room_demo.gif" align="middle" width="160"/> |
 
 This repo is the official implementation of [TarGF](https://arxiv.org/abs/2209.00853). Contents of this repo are as follows:
 
