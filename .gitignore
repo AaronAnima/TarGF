@@ -7,5 +7,4 @@ ExpertDatasets
 .history
 data
 EbOR
-debug.sh
-
+*.sh

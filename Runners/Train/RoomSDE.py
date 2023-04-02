@@ -68,24 +68,28 @@ def visualize_states(eval_states, room_type, ref_batch, logger, nrow, suffix):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    # file
     parser.add_argument('--log_dir', type=str)
     parser.add_argument('--data_name', type=str)
-    parser.add_argument('--test_decay', type=str, default='False')
+    # env
     parser.add_argument('--room_type', type=str, default='bedroom')
+    parser.add_argument('--seed', type=int, default=0)
+    # train
+    parser.add_argument('--base_noise_scale', type=float, default=0.01) # slightly perturb the data
     parser.add_argument('--n_epoches', type=int, default=10000)
-    parser.add_argument('--eval_freq', type=int, default=10)
     parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--lr', type=float, default=2e-4)
     parser.add_argument('--t0', type=float, default=1e-1)
     parser.add_argument('--beta1', type=float, default=0.9)
-    parser.add_argument('--full_train', type=str)
-    parser.add_argument('--test_ratio', type=float, default=0.1)
-    parser.add_argument('--base_noise_scale', type=float, default=0.01)
+    parser.add_argument('--full_train', type=str, default='False')
     parser.add_argument('--workers', type=int, default=8)
     parser.add_argument('--hidden_dim', type=int, default=128)
     parser.add_argument('--embed_dim', type=int, default=64)
-    parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--sigma', type=float, default=25)
+    # eval
+    parser.add_argument('--eval_freq', type=int, default=10)
+    parser.add_argument('--test_decay', type=str, default='False')
+    parser.add_argument('--test_ratio', type=float, default=0.1)
     # load args
     args = parser.parse_args()
 

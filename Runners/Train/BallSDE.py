@@ -70,25 +70,29 @@ def visualize_states(eval_states, env, logger, nrow, epoch, suffix):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    # file
     parser.add_argument('--log_dir', type=str)
-    parser.add_argument('--pattern', type=str, default='CircleCluster')
     parser.add_argument('--data_name', type=str)
     parser.add_argument('--sigma', type=float, default=25.)
+    # env
+    parser.add_argument('--pattern', type=str, default='CircleCluster')
     parser.add_argument('--num_per_class', type=int, default=7)
     parser.add_argument('--num_classes', type=int, default=3)
+    parser.add_argument('--seed', type=int, default=0)
+    # train
     parser.add_argument('--n_epoches', type=int, default=10000)
     parser.add_argument('--n_samples', type=int, default=1000)
-    parser.add_argument('--visualize_freq', type=int, default=10)
-    parser.add_argument('--video_freq', type=int, default=100)
-    parser.add_argument('--test_num', type=int, default=16)
-    parser.add_argument('--test_col', type=int, default=4)
     parser.add_argument('--batch_size', type=int, default=2048)
     parser.add_argument('--t0', type=float, default=1)
     parser.add_argument('--lr', type=float, default=2e-4)
     parser.add_argument('--beta1', type=float, default=0.5)
     parser.add_argument('--workers', type=int, default=8)
+    # eval
+    parser.add_argument('--visualize_freq', type=int, default=10)
+    parser.add_argument('--video_freq', type=int, default=100)
+    parser.add_argument('--test_num', type=int, default=16)
+    parser.add_argument('--test_col', type=int, default=4)
     parser.add_argument('--render_size', type=int, default=256)
-    parser.add_argument('--seed', type=int, default=0)
 
     # load args
     args = parser.parse_args()

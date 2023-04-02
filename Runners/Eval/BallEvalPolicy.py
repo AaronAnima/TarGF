@@ -26,6 +26,7 @@ def normalise_vels(vels, max_vel):
     vels_updated = scale_factor * vels
     return vels_updated
 
+# ORCA Agent
 class PlanningAgent:
     def __init__(self, 
         target_score, 
@@ -197,12 +198,16 @@ if __name__ == '__main__':
 
     ''' Start Eval and Save Videos '''
     if args.eval_mode == 'full_metric':
-        seeds = [args.seed + i*5 for i in range(2)] # seeds used for evaluation
+        # set seeds for evaluation
+        seeds = [args.seed + i*5 for i in range(2)] 
+
         full_metric(args.pattern, env, pdf_func, exp_path, policy, num_objs, args.log_dir, eval_num, recover=(args.recover == 'True'), seeds=seeds)
     elif args.eval_mode == 'analysis':
+        # create folder for analysis
         eval_path = f"./logs/{args.log_dir}/analysis_{args.log_dir}/"
         if not os.path.exists(eval_path):
             os.makedirs(eval_path)
+        
         analysis(env, pdf_func, policy, eval_episodes=eval_num, save_path=f'{eval_path}')
     else:
         raise NotImplementedError
