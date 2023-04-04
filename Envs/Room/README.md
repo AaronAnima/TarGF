@@ -27,7 +27,6 @@ python setup_room_env.py # modify some files in igibson, and construct a softlin
 Besides, you need to download the meta-data of our cleaned data:
 
 ```
-cd data
 
 wget https://www.dropbox.com/s/x6b2vuv8di8fyj8/RoomMetas.zip # download metadata
 
@@ -35,13 +34,13 @@ unzip RoomMetas.zip
 
 rm -rf RoomMetas.zip
 
-mkdir ../../ExpertDatasets # the metadata should be placed in the main path
+mkdir ../../ExpertDatasets # the metadata should be placed in the main path (TarGF)
 
-cp RoomMetas/* ../../ExpertDatasets/ -r
+cp RoomMetas/* ../../ExpertDatasets/ -r 
 
-rm -rf RoomMetas
+rm -rf RoomMetas RoomMetas.zip
 
-cd ../../../
+cd ../../
 ```
 
 

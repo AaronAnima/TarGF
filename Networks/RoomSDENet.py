@@ -27,7 +27,6 @@ class CondScoreModelGNN(nn.Module):
         self.marginal_prob_std = marginal_prob_std_func
         hidden_dim = hidden_dim
         embed_dim = embed_dim
-        self.mode = mode
 
         self.init_enc = nn.Sequential(
             nn.Linear(state_dim + size_dim, hidden_dim),

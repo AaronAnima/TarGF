@@ -1,3 +1,5 @@
+# bedroom:
+
 bedroom_category_num_dict = {'bed': 3880, 'bottom_cabinet': 9744, 'coffee_table': 568,
                              'chair': 919, 'shelf': 674, 'table': 1031,
                              'stool': 294, 'sofa_chair': 181, 'sofa': 117, 'top_cabinet': 1}
@@ -23,4 +25,13 @@ bedroom_category_num_dict = {'bed': 3880, 'bottom_cabinet': 9744, 'coffee_table'
                              'chair': 919, 'shelf': 674, 'table': 1031,
                              'stool': 294, 'sofa_chair': 181, 'sofa': 117, 'top_cabinet': 1}
 
-#
+RESET_BROWNIAN_STEPS = 100
+room_lateralFriction = 0.0
+
+# from ipdb import set_trace
+# import pickle
+# # test a room dict
+# # 848506e2-a801-43e7-b843-122761708d88
+# with open('./dataset/debug_3dfront/living_room_category_num_dict.pickle', 'rb') as f:
+#     num_dict = pickle.load(f)
+# set_trace()

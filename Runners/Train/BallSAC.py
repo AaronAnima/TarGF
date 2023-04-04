@@ -335,7 +335,6 @@ if __name__ == "__main__":
             action = env.flatten_actions([action])[0] # flatten action !!
         else:
             action = policy.select_action(np.array(state), sample=True)
-
         # Perform action
         next_state, _, done, infos = env.step(action)
         next_state = env.flatten_states([next_state])[0] # flatten state!

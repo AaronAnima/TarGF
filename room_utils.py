@@ -165,7 +165,7 @@ def split_dataset(dataset, seed, test_ratio, full_train='False'):
 
 class GraphDataset4RL:
     def __init__(self, data_name, base_noise_scale=0.01):
-        self.data_root = f'../ExpertDatasets/{data_name}/content'
+        self.data_root = f'./ExpertDatasets/{data_name}/content'
         self.folders_path = os.listdir(self.data_root)
         self.items = []
         self.items_dict = {}
@@ -188,7 +188,7 @@ class GraphDataset4RL:
         self.state_dim = 4
         self.size_dim = 2
         self.scale = base_noise_scale
-        self.histogram_path = f'../ExpertDatasets/{data_name}/histogram.png'
+        self.histogram_path = f'./ExpertDatasets/{data_name}/histogram.png'
 
         self.draw_histogram()
 
@@ -219,7 +219,7 @@ class GraphDataset4RL:
 
 class GraphDataset:
     def __init__(self, data_name, base_noise_scale=0.01, data_ratio=1):
-        self.data_root = f'../ExpertDatasets/{data_name}/content'
+        self.data_root = f'./ExpertDatasets/{data_name}/content'
         self.folders_path = os.listdir(self.data_root)
         self.items = []
         self.items_dict = {}
@@ -243,7 +243,7 @@ class GraphDataset:
         self.state_dim = 4
         self.size_dim = 2
         self.scale = base_noise_scale
-        self.histogram_path = f'../ExpertDatasets/{data_name}/histogram.png'
+        self.histogram_path = f'./ExpertDatasets/{data_name}/histogram.png'
 
         self.draw_histogram()
 

@@ -76,7 +76,7 @@ if __name__ == '__main__':
     parser.add_argument('--seed', type=int, default=0)
     # train
     parser.add_argument('--base_noise_scale', type=float, default=0.01) # slightly perturb the data
-    parser.add_argument('--n_epoches', type=int, default=10000)
+    parser.add_argument('--n_epoches', type=int, default=2000)
     parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--lr', type=float, default=2e-4)
     parser.add_argument('--t0', type=float, default=1e-1)
@@ -155,7 +155,7 @@ if __name__ == '__main__':
             writer.add_scalar('train_loss', loss, i + epoch*len(dataloader_train))
 
         # start eval
-        if epoch % args.eval_freq == 0:
+        if (epoch+1) % args.eval_freq == 0:
             test_batch = next(iter(dataloader_test))
             with torch.no_grad():
                 t0 = args.t0

@@ -1,10 +1,14 @@
+import argparse
 import os
 import random
 import time
+from numpy.lib.ufunclike import fix
 import pybullet as p
 import igibson
 import torch
 import numpy as np
+from PIL import Image
+import matplotlib.pyplot as plt
 from ipdb import set_trace
 from tqdm import tqdm
 import pickle
@@ -12,10 +16,15 @@ from gym import spaces
 from igibson.scene_loader import Simulator
 from igibson.scenes.igibson_indoor_scene import InteractiveIndoorScene
 
-import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-from Envs.Room.RoomCONSTANTS import bedroom_type_mapping, bedroom_typeidx_mapping, livingroom_type_mapping, livingroom_typeidx_mapping
+import sys
+from os.path import join as pjoin
+
+BASEPATH = os.path.dirname(__file__)
+sys.path.insert(0, pjoin(BASEPATH, '..'))
+sys.path.insert(0, pjoin(BASEPATH, '..', '..'))
+
+from Envs.Room.RoomCONSTANTS import bedroom_type_mapping, bedroom_typeidx_mapping, livingroom_type_mapping, livingroom_typeidx_mapping, RESET_BROWNIAN_STEPS, room_lateralFriction
 from room_utils import GraphDataset4RL, split_dataset
 
 
@@ -59,17 +68,22 @@ class MySimulator:
         self.margin = 0
         self.proxy_height = None
 
-    def change_dynamics(self):
+    def change_dynamics(self, penalize_collision=True):
         for name, obj in self.objects_by_name.items():
             for body_id in obj.body_ids:
-                p.changeDynamics(body_id, -1, lateralFriction=0., spinningFriction=0., rollingFriction=0.,
-                                 restitution=0.98)
+                if penalize_collision:
+                    p.changeDynamics(body_id, -1, lateralFriction=room_lateralFriction, spinningFriction=0., rollingFriction=0.,
+                                    restitution=0.01)
+                else:
+                    p.changeDynamics(body_id, -1, lateralFriction=0., spinningFriction=0., rollingFriction=0.,
+                                    restitution=0.98)
 
     def check_bad(self, obj_num_range, wall_num_range, black_set, white_set,
                   collision_thres=0.01,
                   total_ratio_bound=1.0,
                   single_ratio_bound=1.0,
                   single_side_bound=1.0):
+        # objects in 'black_set' will never be included
         # black_set: set(['cabinet'])
         # white_set: set(['bed', 'top_cabinet'])
         wall_num = len(self.wall_obj_dicts)
@@ -168,7 +182,6 @@ class MySimulator:
             assert category_ == category
             assert self.bound_x > 0 and self.bound_y > 0
             for cur_id in obj.body_ids:
-                # cur_id = obj.body_ids[0]
                 # clip range
                 pos_ = np.clip(state_[ptr][0:2], -1, 1)
                 pos = np.array([pos_[0] * self.bound_max, pos_[1] * self.bound_max])
@@ -176,14 +189,11 @@ class MySimulator:
                 # normalize to a normal vector
                 ori /= np.linalg.norm(ori)
                 ori = np.arctan2(ori[0:1], ori[1:2])
-                # import ipdb
-                # ipdb.set_trace()
 
                 cur_ori = p.getQuaternionFromEuler([0, 0, ori[0]])
                 if self.proxy_checkpoint is None:
                     height = self.inital_checkpoint[name]['pos'][-1]
                 else:
-                    # height = self.proxy_checkpoint[name][cur_id]['pos'][-1]
                     height = self.proxy_height / 2
                 p.resetBasePositionAndOrientation(cur_id, [pos[0], pos[1], height], cur_ori, physicsClientId=self.cid)
                 p.resetBaseVelocity(cur_id, [0, 0, 0], [0, 0, 0], physicsClientId=self.cid)
@@ -222,23 +232,9 @@ class MySimulator:
             size = np.array([size[0] * 2 / self.bound_max - 1, size[1] * 2 / self.bound_max - 1])
             obj_feat = np.concatenate([pos, ori, size, label])
             obj_feats.append(obj_feat)
-        # # for walls: [from(2) | to(2) | normal(2)]
-        # # edge_index: fully connected, but as wall_dicts is well orderd, we can design a more fine-grained edge_index
-        # wall_feats = []
-        # for wall in self.wall_obj_dicts:
-        #     assert self.center is not None
-        #     wall_feat = np.concatenate([(wall['from']-self.center[0:2]) / np.array([self.bound_x, self.bound_y]),
-        #                                 (wall['to']-self.center[0:2]) / np.array([self.bound_x, self.bound_y]),
-        #                                 wall['normal']])
-        #     wall_feats.append(wall_feat)
-
-        # wall_batch = np.stack(wall_feats) # [w, 6]
-        # for walls, now we only consider 4-wall, so we only need to know the x/y ratio
-        # wall_feat = np.array([self.bound_x, self.bound_y]) # [2]
         wall_feat = np.array([np.tanh(self.bound_x / self.bound_y)])  # [1]
         obj_batch = np.stack(obj_feats)  # [o, 7]
 
-        # return: wall feature, objects batch
         return wall_feat, obj_batch
 
     def set_constraints(self):
@@ -263,6 +259,7 @@ class MySimulator:
                 p.changeConstraint(joint, maxForce=0)
 
     def get_collision_num(self, centralized=True):
+        # do not count in collision with walls
         # collision detection
         items = list(self.objects_by_name.items())
         num_objects = len(items)-2
@@ -272,17 +269,14 @@ class MySimulator:
             if item[0] in ['walls', 'floors']:
                 continue
             processed_items.append(item)
-        assert len(processed_items) == num_objects
+        assert len(processed_items) == num_objects # wall and floor are not included
         collisions = np.zeros((num_objects, num_objects))
         for idx1, (name1, obj1) in enumerate(processed_items[:-1]):
             for idx2, (name2, obj2) in enumerate(processed_items[idx1 + 1:]):
                 id_1 = obj1.body_ids[0]
                 id_2 = obj2.body_ids[0]
                 points = p.getContactPoints(id_1, id_2, physicsClientId=self.cid)
-                # cnt += len(points) > 0
                 collisions[idx1][idx2] = (len(points) > 0)
-                # for debug
-                # print(f'{name1} {name2} {len(points)}')
         return np.sum(collisions).item() if centralized else collisions
 
     def check_valid(self, thres_pos=0.05, thres_ori=0.1, debug=False, is_init=True):
@@ -294,6 +288,7 @@ class MySimulator:
                 cur_pos, cur_ori = p.getBasePositionAndOrientation(body_id, physicsClientId=self.cid)
                 tar_height = self.proxy_height / 2 if self.proxy_height is not None else (height + self.margin) / 2
                 delta_pos = np.abs(tar_height - cur_pos[-1])
+                ''' check floating '''
                 if delta_pos > thres_pos:
                     if debug:
                         print(f'Pos out of thres! {delta_pos}')
@@ -303,13 +298,20 @@ class MySimulator:
                     if debug:
                         print(f'Ori out of thres! roll: {cur_ori[0]}, pitch: {cur_ori[1]}, delta: {delta_ori}')
                     return False
+                ''' check out of range '''
+                if np.abs(cur_pos[0]) >= self.bound_x or np.abs(cur_pos[1]) >= self.bound_y:
+                    return False
         if is_init:
             collision_num = self.get_collision_num()
             if collision_num > 0:
                 if debug:
                     print(f'collision: {collision_num}, failed!')
                 return False
-        return True
+        else:
+            ''' besides, furnitures should not get out of walls'''
+            self.step() # remember pre-simulation before check collisions!
+            collision_num = self.get_collision_num()
+            return collision_num == 0
 
     def regularize_state(self):
         for name, obj in self.objects_by_name.items():
@@ -327,8 +329,6 @@ class MySimulator:
         for _ in range(step_num):
             for name, obj in self.objects_by_name.items():
                 if name in ['walls', 'floors']:
-                    # for body_id in obj.body_ids:
-                    #     p.resetBaseVelocity(body_id, linearVelocity=[0, 0, 0])
                     continue
                 if obj.category in fixed:
                     p.resetBaseVelocity(obj.body_ids[0], linearVelocity=[0, 0, 0], angularVelocity=[0, 0, 0],
@@ -338,7 +338,6 @@ class MySimulator:
                 angular_v = np.random.normal(size=1) * scale_ang
                 vel = [horizon_v[0].item(), horizon_v[1].item(), 0]
                 ang_vel = [0, 0, angular_v[0].item()]
-                # ang_vel = [0, 0, 0]
                 p.resetBaseVelocity(obj.body_ids[0], linearVelocity=vel, angularVelocity=ang_vel,
                                     physicsClientId=self.cid)
 
@@ -392,7 +391,6 @@ class MySimulator:
             physicsClientId=self.cid 
         )
         rgb = rgba[:, :, 0:3]
-        # print('###### take snapshot success! ######')
         return rgb
 
     def augment_room(self):
@@ -426,18 +424,11 @@ class MySimulator:
                 continue
             for cur_id in obj.body_ids:
                 cur_pos, cur_ori = p.getBasePositionAndOrientation(cur_id, physicsClientId=self.cid)
-                # as wall and floor is centered well, but the pos is not (0, 0, 0)
-                # aug_pos = cur_pos if name in ['walls', 'floors'] else np.array([cur_pos[0], -cur_pos[1], cur_pos[2]])
                 aug_pos = np.array([cur_pos[0], -cur_pos[1], cur_pos[2]])
                 aug_ori = p.getEulerFromQuaternion(cur_ori)
                 aug_ori = np.array([aug_ori[0], aug_ori[1], np.pi - aug_ori[2]])
                 aug_ori = p.getQuaternionFromEuler(aug_ori)
-                # ori = p.getEulerFromQuaternion(cur_ori)
-                # ori = np.array(ori)
-                # ori[-1] = -ori[-1]
-                # aug_ori = p.getQuaternionFromEuler(ori)
                 p.resetBasePositionAndOrientation(cur_id, aug_pos, aug_ori, physicsClientId=self.cid)
-                # print(p.resetBasePositionAndOrientation(cur_id, cur_pos, cur_ori))
 
     def reset(self, is_initial=True):
         self.reset_checkpoint(is_initial)
@@ -554,8 +545,9 @@ class ProxySimulator(MySimulator):
         else:
             self.cid = p.connect(p.DIRECT)
         my_data_path = os.path.join(os.path.dirname(__file__), 'Assets')
+
         # plane: 200*200, plane_transparent: 30*30
-        plane_base = p.loadURDF(my_data_path + "plane.urdf", [0, 0, 0], p.getQuaternionFromEuler([0, 0, 0]),
+        plane_base = p.loadURDF(os.path.join(my_data_path, "plane.urdf"), [0, 0, 0], p.getQuaternionFromEuler([0, 0, 0]),
                                 physicsClientId=self.cid)
         proxy_dict['floors'] = DummyObject([plane_base])
 
@@ -572,13 +564,13 @@ class ProxySimulator(MySimulator):
         pos2 = [-bound_x, 0, 0]
         pos3 = [0, bound_y, 0]
         pos4 = [0, -bound_y, 0]
-        plane_name = "plane_transparent.urdf"
+        plane_name = "plane_transparent.urdf" # higher fric-coeff
         scale_x = bound_y / 2.5
         scale_y = bound_x / 2.5
-        transplane1 = p.loadURDF(my_data_path + plane_name, pos1, ori1, globalScaling=scale_x, physicsClientId=self.cid)
-        transplane2 = p.loadURDF(my_data_path + plane_name, pos2, ori2, globalScaling=scale_x, physicsClientId=self.cid)
-        transplane3 = p.loadURDF(my_data_path + plane_name, pos3, ori3, globalScaling=scale_y, physicsClientId=self.cid)
-        transplane4 = p.loadURDF(my_data_path + plane_name, pos4, ori4, globalScaling=scale_y, physicsClientId=self.cid)
+        transplane1 = p.loadURDF(os.path.join(my_data_path, plane_name), pos1, ori1, globalScaling=scale_x, physicsClientId=self.cid)
+        transplane2 = p.loadURDF(os.path.join(my_data_path, plane_name), pos2, ori2, globalScaling=scale_x, physicsClientId=self.cid)
+        transplane3 = p.loadURDF(os.path.join(my_data_path, plane_name), pos3, ori3, globalScaling=scale_y, physicsClientId=self.cid)
+        transplane4 = p.loadURDF(os.path.join(my_data_path, plane_name), pos4, ori4, globalScaling=scale_y, physicsClientId=self.cid)
 
         self.bound_x = bound_x
         self.bound_y = bound_y
@@ -599,18 +591,20 @@ class ProxySimulator(MySimulator):
                 physicsClientId=self.cid
             )
             # some bugs when set visual id
-            # visual_id = p.createVisualShape(
-            #     shapeType=p.GEOM_BOX,
-            #     halfExtents=obj['size']/2,
-            #     visualFramePosition=[0, 0, 0],
-            #     visualFrameOrientation=[0, 0, 0, 0],
-            #     physicsClientId=self.cid,
-            #     rgbaColor=[0, 0, 1]
-            # )
+            rgba_value = np.random.uniform(0, 1, size=(4,))
+            rgba_value[-1] = 0.6 # alpha
+            visual_id = p.createVisualShape(
+                shapeType=p.GEOM_BOX,
+                halfExtents=obj['size']/2,
+                visualFramePosition=[0, 0, 0],
+                physicsClientId=self.cid,
+                rgbaColor=rgba_value,
+                specularColor=[0.4, .4, 0],
+            )
             body_id = p.createMultiBody(
                 baseMass=10,
                 baseCollisionShapeIndex=collision_id,
-                # baseVisualShapeIndex=visual_id,
+                baseVisualShapeIndex=visual_id,
                 basePosition=np.array([obj['pos'][0], obj['pos'][1], self.proxy_height / 2]),
                 baseOrientation=obj['ori'],
                 physicsClientId=self.cid
@@ -618,12 +612,9 @@ class ProxySimulator(MySimulator):
             proxy_dict[name] = DummyObject([body_id])
         p.setGravity(0, 0, -10)
         p.setTimeStep(1. / 240)
-        self.change_dynamics()
+        self.change_dynamics(penalize_collision=True) 
         self.objects_by_name = proxy_dict
         self.remove_collsion()
-        # set_trace()
-        # while True:
-        #     p.stepSimulation()
         self.proxy_checkpoint = {}
 
     def save_checkpoint(self):
@@ -648,11 +639,9 @@ class ProxySimulator(MySimulator):
             self.regularize_state()
 
     def reset(self, debug=False):
-        # large object problem
         flag = False
         try_cnt = 0
         while not flag:
-            # set_trace()
             for name, obj in self.objects_by_name.items():
                 if name in ['walls', 'floors']:
                     continue
@@ -661,15 +650,11 @@ class ProxySimulator(MySimulator):
                 rand_y = np.random.uniform(-self.bound_y * ratio, self.bound_y * ratio)
                 rand_yall = np.random.uniform(-np.pi, np.pi)
                 for body_id in obj.body_ids:
-                    # height = self.inital_checkpoint[name]['size'][-1]/2
                     height = self.proxy_height / 2
                     cur_ori = p.getQuaternionFromEuler([0, 0, rand_yall])
                     p.resetBasePositionAndOrientation(body_id, [rand_x, rand_y, height], cur_ori,
                                                       physicsClientId=self.cid)
             self.remove_collsion()
-            # set_trace()
-            # self.set_brownian_velocity(step_num=50)
-            # flag = self.check_valid()
             flag = self.check_stable()
             try_cnt += 1
         if debug:
@@ -760,7 +745,9 @@ class RLEnv:
             for _ in range(rot_num):
                 self.sim.augment_room()
         if brownian:
-            for _ in range(10):
+            # large brownian step
+            step_num = RESET_BROWNIAN_STEPS
+            for _ in range(step_num):
                 self.sim.set_brownian_velocity(
                     scale=5,
                     scale_ang=2,
@@ -776,17 +763,17 @@ class RLEnv:
             total_steps += 20
             if total_steps > 10000:
                 print('Warning! Reset takes too much trial!')
+                # assert brownian
                 break
         return self.sim.get_state()
 
     def close(self, sleep=1):
         p.disconnect(physicsClientId=self.sim.cid)
         time.sleep(sleep)
-        # self.sim.disconnect()
 
 
 class RLEnvDynamic:
-    # wrap for baseline-rce, we padding the state space to [8, 6] + [1, 6](wall feat), and action space as well
+    # Compared to RLEnvFull, this version do not pad the state and action
     def __init__(
         self,
         tar_data_name='M12D25_Target_obj38_1_1_tr04_sr05_ss05_bs5_bsa1_bsn0_sbs0_preb0',
@@ -823,23 +810,12 @@ class RLEnvDynamic:
 
         ''' set expert dataset '''
         train_dataset, test_dataset, infos_dict = split_dataset(self.tar_dataset, seed=test_seed, test_ratio=test_ratio)
-        # set_trace()
-        # self.exp_data = []
-        # for state in train_dataset:
-        #     prepro_data = self.prepro_state(state)
-        #     if self.fix_num is not None:
-        #         if prepro_data.shape[0] == 7 * (self.fix_num + 1):  # +1 是因为有wall feat concat在里面！
-        #             self.exp_data.append(prepro_data)
-        #     else:
-        #         self.exp_data.append(prepro_data)
-        # self.exp_data = np.stack(self.exp_data)
 
         # len(self.room_metas_dict.keys()) == 903
         ''' set init states dataset '''
-        with open(f'../ExpertDatasets/{meta_name}.pickle', 'rb') as f:
+        with open(f'./ExpertDatasets/{meta_name}.pickle', 'rb') as f:
             self.room_metas_dict = pickle.load(f)
 
-        # self.room_names = self.tar_dataset.folders_path
         # total: 839 rooms
         # test: 83 rooms
         # train: 756 rooms
@@ -848,15 +824,11 @@ class RLEnvDynamic:
         for state in dataset:
             _, _, room_name = state
             self.room_names.append(room_name)
-        self.room_names = list(set(self.room_names))
-        self.room_names.sort()
+        self.room_names = list(set(self.room_names)) # remove the repeated room names here!
+        self.room_names.sort() # fix the order
         for room_name in self.room_names:
             assert room_name in self.room_metas_dict.keys()
         
-        # # M5D4: test small room number
-        # if not self.is_single_room:
-        #     self.room_names = self.room_names[:5]
-
         self.proxy_dict = {
             'padding': 0.0,
             'margin': 0.0,
@@ -868,6 +840,11 @@ class RLEnvDynamic:
         self.name = None
         self.idx = 0
     
+    def nop_action(self):
+        action = np.zeros((self.obj_number*3))
+        return action
+
+    
     def seed(self, seed):
             torch.manual_seed(seed)
             np.random.seed(seed)
@@ -877,20 +854,17 @@ class RLEnvDynamic:
     def obj_number(self):
         return self.sim.obj_num
 
-    def reset(self, room_name=None, goal=None, flip=True, rotate=True, brownian=True, is_random_sample=True, flip_rotate_params=None):
+    def reset(self, room_name=None, goal=None, flip=False, rotate=False, brownian=False, is_random_sample=True, flip_rotate_params=None):
+        # is_random_sample: whether random sample room name
+        # brownian: whether brownian steps to shuffle the room
         self.episode_cnt += 1
         if self.sim is not None:
             self.sim.close()
         self.sim = self.sample(room_name, is_random_sample=is_random_sample, margin=0.1)
-        room_name = self.sim.name
         if goal is not None:
             self.sim.sim.set_state(goal[-1], wall_feat=goal[0])
-        state = self.sim.reset(flip, rotate, brownian, flip_rotate_params)  # [obj_num, 7] -> [8+1, 7]
-        # state = self.sim.reset(False, False, False)  # [obj_num, 7] -> [8+1, 7]
-        # state = self.sim.reset(False, False, brownian)  # [obj_num, 7] -> [8+1, 7]
-        self.sim.close()
-        self.sim = self.sample(room_name, 0.0)
-        self.sim.sim.set_state(state[1], state[0])
+        # flip-rotate-brownian
+        state = self.sim.reset(flip, rotate, brownian, flip_rotate_params)
 
         print(f'No.{self.episode_cnt} Episode Success!')
         return state
@@ -906,6 +880,7 @@ class RLEnvDynamic:
     def sample(self, room_name=None, is_random_sample=True, margin=0.0):
         if room_name is None:
             if self.is_single_room:
+                # for debug
                 name = '3a19c7bb-bc35-44e3-8d48-4fb00b9789ff'
             else:
                 if is_random_sample:
@@ -923,7 +898,6 @@ class RLEnvDynamic:
                 name = random.sample(self.room_names, 1)[0]
                 room_meta = self.room_metas_dict[name]
                 flag = (len(room_meta['meta']) - 2 != self.fix_num)
-        # room_meta = self.scene_sampler[name]
         proxy_dict = self.proxy_dict
         proxy_dict['margin'] = margin
         sim = ProxySimulator(room_meta, 0, name, self.room_type, proxy_dict, is_gui=self.is_gui)
@@ -948,15 +922,14 @@ class RLEnvFull:
             room_type='bedroom',
             fix_num=None,
             test_seed=0,
-            test_ratio=0.2,
+            test_ratio=0.1,
             is_single_room=False,
+            split='train', 
     ):
         self.max_vel = exp_configs['max_vel']
         self.pos_rate = exp_configs['max_vel']
         self.ori_rate = exp_configs['ori_rate']
         self.is_single_room = is_single_room
-        # self.action_space = spaces.Box(-self.max_vel, self.max_vel, shape=(8, 3), dtype=np.float32)
-        # self.observation_space = spaces.Box(-1, 1, shape=(9, 7), dtype=np.float32)
         self.fix_num = fix_num
         if fix_num is None:
             self.action_space = spaces.Box(-self.max_vel, self.max_vel, shape=(8 * 3,), dtype=np.float32)
@@ -968,7 +941,7 @@ class RLEnvFull:
         self.exp_kwargs = exp_configs
         self.room_type = room_type
         self.is_gui = is_gui
-        self.tar_dataset = GraphDataset4RL(f'{tar_data_name}_{room_type}')
+        self.tar_dataset = GraphDataset4RL(f'{tar_data_name}')
 
         train_dataset, test_dataset, infos_dict = split_dataset(self.tar_dataset, seed=test_seed, test_ratio=test_ratio)
 
@@ -982,19 +955,20 @@ class RLEnvFull:
                 self.exp_data.append(prepro_data)
         self.exp_data = np.stack(self.exp_data)
 
+        ''' init room names '''
+        with open(f'./ExpertDatasets/{meta_name}.pickle', 'rb') as f:
+            self.room_metas_dict = pickle.load(f)
         self.room_names = []
-        for state in test_dataset:
+        dataset = train_dataset if split == 'train' else test_dataset
+        for state in dataset:
             _, _, room_name = state
             self.room_names.append(room_name)
-        self.room_names.sort()
-
-        # make sure all the room names are contained in metadatas
-        with open(f'../ExpertDatasets/{meta_name}.pickle', 'rb') as f:
-            self.room_metas_dict = pickle.load(f)
+        self.room_names = list(set(self.room_names)) # remove the repeated room names here!
+        self.room_names.sort() # fix the order
+        # check all the room name is valid in room-metas
         for room_name in self.room_names:
             assert room_name in self.room_metas_dict.keys()
 
-        # self.room_names = self.tar_dataset.folders_path
         self.proxy_dict = {
             'padding': 0.0,
             'margin': 0.0,
@@ -1039,16 +1013,7 @@ class RLEnvFull:
         return self.prepro_state(next_state), reward, is_done, infos
 
     def get_dataset(self, num_obs=256):
-        # # sample a batch of random actions
-        # action_vec = [self.sample_action() for _ in range(num_obs)]
-        # # sample a batch of example states
-        # ind = np.random.randint(0, self.exp_data.shape[0], size=(num_obs,))
-        # obs_vec = self.exp_data[ind]
-        # dataset = {
-        #     'observations': np.array(obs_vec, dtype=np.float32),
-        #     'actions': np.array(action_vec, dtype=np.float32),
-        #     'rewards': np.zeros(num_obs, dtype=np.float32),
-        # }
+        # for RCE
         num_obs_full = self.exp_data.shape[0]
         num_obs = num_obs_full
         # # sample a batch of random actions
@@ -1065,6 +1030,7 @@ class RLEnvFull:
     def sample(self, room_name=None):
         if room_name is None:
             if self.is_single_room:
+                # for debug
                 name = '3a19c7bb-bc35-44e3-8d48-4fb00b9789ff'
             else:
                 name = random.sample(self.room_names, 1)[0]
@@ -1077,24 +1043,10 @@ class RLEnvFull:
                 name = random.sample(self.room_names, 1)[0]
                 room_meta = self.room_metas_dict[name]
                 flag = (len(room_meta['meta']) - 2 != self.fix_num)
-        # room_meta = self.scene_sampler[name]
-
+        
         sim = ProxySimulator(room_meta, 0, name, self.room_type, self.proxy_dict, is_gui=self.is_gui)
         self.name = name
         return RLEnv(sim, self.exp_kwargs, name=name)
-
-    # def sample(self):
-    #     name = random.sample(self.room_names, 1)[0]
-    #     room_meta = self.room_metas_dict[name]
-    #     if self.fix_num is not None:
-    #         flag = (len(room_meta['meta']) - 2 != self.fix_num)
-    #         while flag:
-    #             name = random.sample(self.room_names, 1)[0]
-    #             room_meta = self.room_metas_dict[name]
-    #             flag = (len(room_meta['meta']) - 2 != self.fix_num)
-
-    #     sim = ProxySimulator(room_meta, 0, name, self.room_type, self.proxy_dict, is_gui=self.is_gui)
-    #     return RLEnv(sim, self.exp_kwargs, name=name)
 
     def sample_action(self):
         action_ = np.random.normal(size=(8 if self.fix_num is None else self.fix_num, 3)) * self.max_vel
@@ -1111,7 +1063,8 @@ class SceneSampler:
                  floating_to_planar=False,
                  mode='normal',
                  proxy_dict={'padding': 0, 'margin': 0, 'proxy_height': 0.5},
-                 resize_dict={'bed':0.8, 'shelf':0.8}):
+                 resize_dict={'bed':0.8, 'shelf':0.8}
+        ):
         self.room_type = room_type
         self.gui = gui
         self.scene_source = scene_source
@@ -1146,11 +1099,7 @@ class SceneSampler:
             return None
 
     def get_scene(self, idx):
-        # set_trace()
         scene_name = self.name_list[idx]
-        # print('get scene name success')
-        # s = None
-        # try:
         scene = InteractiveIndoorScene(
                         scene_name,
                         texture_randomization=False,
@@ -1159,26 +1108,18 @@ class SceneSampler:
                         scene_data_type=self.room_type,
                         floating_to_planar=self.floating_to_planar,
                         category_to_resize_ratio=self.resize_dict,
+                    
         )
-        # print('create scene success')
         s = Simulator(mode=self.gui)
-        # print('create Simulator success')
 
         s.import_ig_scene(scene)
-        # print('import scene success')
 
         p.resetDebugVisualizerCamera(cameraDistance=10.0, cameraYaw=0., cameraPitch=-89., cameraTargetPosition=[0, 0, 0])
-        # print('reset camera success')
         ts = time.time()
         sim = MySimulator(s, idx, self.name_list[idx], self.room_type) if self.mode == 'normal' \
             else ProxySimulator(s, idx, self.name_list[idx], self.room_type, proxy_dict=self.proxy_dict, is_gui=(self.gui=='pbgui'))
         print(time.time() - ts)
         return sim
-        # except Exception as e:
-        #     print(f'No.{idx}: {e}')
-        #     if s:
-        #         s.disconnect()
-        #     return None
 
     def __len__(self):
         return len(self.name_list)
@@ -1191,45 +1132,3 @@ class SceneSampler:
         else:
             print('index type error!')
             return None
-
-
-if __name__ == '__main__':
-    tar_data = 'M12D25_Target_obj38_1_1_tr04_sr05_ss05_bs5_bsa1_bsn0_sbs0_preb0'
-    exp_kwargs = {'max_vel': 4, 'pos_rate': 1, 'ori_rate': 1, 'max_horizon': 250}
-    # rlenv = RLEnvFull(
-    #     tar_data,
-    #     exp_kwargs,
-    #     meta_name='M12D25_Support_obj38_50_20_tr04_sr05_ss05_bs5_bsa2_bsn1000_sbs5_preb5_bedroom_proxy',
-    #     is_gui=False
-    # )
-    rlenv = RLEnvFull()
-
-    with tqdm(total=len(rlenv.room_names)) as pbar:
-        while True:
-            cur_state = rlenv.reset()  # cur_state = (wall_feat: (1,), obj_feat: (6, 7))
-            # img = /
-            # set_trace()
-            done = False
-            while not done:
-                action = rlenv.sample_action()
-                _, _, done, _ = rlenv.step(action)
-                # time.sleep(0.01)
-            pbar.update(1)
-
-
-# class RLEnvSampler:
-#     def __init__(self, tar_data_name, exp_configs, is_gui=False, room_type='bedroom'):
-#         self.exp_kwargs = exp_configs
-#         tar_dataset = GraphDataset(f'{tar_data_name}_{room_type}')
-#         self.room_names = tar_dataset.folders_path
-#         proxy_dict = {
-#             'padding': 0.0,
-#             'margin': 0.0,
-#             'proxy_height': 0.5,
-#         }
-#         self.sampler = SceneSampler(room_type, proxy_dict=proxy_dict, gui='pbgui' if is_gui else 'DIRECT', resize_dict={'bed': 0.8, 'shelf': 0.8})
-#         # self.sampler.mode = 'proxy'
-#
-#     def sample(self):
-#         sim = self.sampler[random.sample(self.room_names, 1)[0]]
-#         return RLEnv(sim, self.exp_kwargs)
