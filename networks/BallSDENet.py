@@ -22,15 +22,6 @@ class GaussianFourierProjection(nn.Module):
         return torch.cat([torch.sin(x_proj), torch.cos(x_proj)], dim=-1)
 
 
-class Dense(nn.Module):
-    """A fully connected layer that reshapes outputs to feature maps."""
-    def __init__(self, input_dim, output_dim):
-        super().__init__()
-        self.dense = nn.Linear(input_dim, output_dim)
-    def forward(self, x):
-        return self.dense(x)[..., None, None]
-
-
 class ScoreModelGNN(nn.Module):
     def __init__(self, marginal_prob_std_func, num_classes, device, hidden_dim=64, embed_dim=32):
         super(ScoreModelGNN, self).__init__()   

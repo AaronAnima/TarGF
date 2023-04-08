@@ -8,6 +8,8 @@ from collections import deque
 import cv2
 import sys
 import os
+import ebor 
+import gym
 import time
 from ipdb import set_trace
 import torch
@@ -22,8 +24,38 @@ import matplotlib.pyplot as plt
 from torch_geometric.nn import knn_graph
 from torch_geometric.data import Data
 
+from utils.misc import exists_or_mkdir
 
 
+# for ball rearrangement:
+def snapshot(env, file_name):
+    img = env.render(img_size=256)
+    cv2.imwrite(file_name, img)
+
+def collect_ball_dataset(configs, env):
+
+    n_samples = configs.n_samples
+    suffix = configs.data_name
+    env_name = '{}-{}Ball{}Class-v0'.format(configs.pattern, configs.num_objs, configs.num_classes)
+
+    exists_or_mkdir('./expert_datasets/')
+    debug_path = f'./expert_datasets/{env_name}_{suffix}/'
+    exists_or_mkdir(debug_path)
+    samples = []
+    debug_freq = 100
+    
+    with tqdm(total=configs.n_samples) as pbar:
+        while len(samples) < n_samples:
+            cur_state = env.reset(is_random=False)
+            samples.append(cur_state)
+            if len(samples) % debug_freq == 0:
+                snapshot(env, f'{debug_path}debug_{len(samples)//debug_freq}.png')
+            pbar.update(1)
+    samples = env.flatten_states(samples)
+    samples = np.stack(samples, axis=0)
+    return samples
+
+# for room rearrangement: 
 def split_dataset(dataset, seed, test_ratio, full_train='False'):
     random.seed(seed)
 

@@ -34,51 +34,6 @@ def loss_fn_state(model, x, marginal_prob_std_func, num_objs, eps=1e-5):
     loss_ = torch.mean(torch.sum(((output * std + z)**2).view(bs, -1), dim=-1))
     return loss_
 
-def ode_sampler(score_model,
-                marginal_prob_std,
-                diffusion_coeff,
-                num_objs,
-                batch_size=64, 
-                atol=1e-5, 
-                rtol=1e-5, 
-                device='cuda', 
-                eps=1e-3,
-                t0=1,
-                num_steps=None):
-    # initial t, t0 can be specified with a scalar ranges in (0, 1]
-    t = torch.ones(batch_size, device=device).unsqueeze(-1) * t0
-    
-    k = num_objs - 1
-    # Create the latent code
-    init_x = torch.randn(batch_size * num_objs, 2, device=device) * marginal_prob_std(t).repeat(1, num_objs).view(-1, 1)
-    init_x_batch = torch.tensor([i for i in range(batch_size) for _ in range(num_objs)], dtype=torch.int64)
-    edge_index = knn_graph(init_x.cpu(), k=k, batch=init_x_batch)
-    
-    shape = init_x.shape
-
-    def score_eval_wrapper(sample, time_steps):
-        """A wrapper of the score-based model for use by the ODE solver."""
-        with torch.no_grad():    
-            score = score_model(sample, time_steps, n_box)
-        return score.cpu().numpy().reshape((-1,))
-    
-    def ode_func(t, x):        
-        """The ODE function for use by the ODE solver."""
-        x = Data(x=torch.tensor(x.reshape(-1, 2), dtype=torch.float32), edge_index=edge_index, batch=init_x_batch).to(device)
-        time_steps = torch.ones(batch_size, device=device).unsqueeze(-1) * t
-        g = diffusion_coeff(torch.tensor(t)).cpu().numpy()
-        return  -0.5 * (g**2) * score_eval_wrapper(x, time_steps)
-
-    # Run the black-box ODE solver.
-    t_eval = None
-    if num_steps is not None:
-        # num_steps, from t0 -> eps
-        t_eval = np.linspace(t0, eps, num_steps)
-    res = integrate.solve_ivp(ode_func, (t0, eps), init_x.reshape(-1).cpu().numpy(), rtol=rtol, atol=atol, method='RK45', t_eval=t_eval)
-    xs = torch.clamp(torch.tensor(res.y[:n* 2], device=device).T, min=-1.0, max=1.0)
-    x = torch.clamp(torch.tensor(res.y[:, -1], device=device).reshape(shape), min=-1.0, max=1.0)
-    return xs, x
-
 
 def ode_sampler(score_model,
                 marginal_prob_std,

@@ -1,9 +1,8 @@
 import ml_collections
-import torch
-
 
 def get_config():
     config = ml_collections.ConfigDict()
+    config.env_type = 'Room'
     
     ''' Train GF '''
     # file
@@ -26,6 +25,7 @@ def get_config():
     config.vis_freq_gf = 1
     config.test_ratio = 0.1 # for splitting the training set
     config.vis_col = 2
+    config.sampling_steps = 500
 
     ''' Train SAC '''
     # file 
