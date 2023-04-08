@@ -23,8 +23,9 @@ def get_config():
     config.full_train = False
     config.base_noise_scale = 0.01
     # eval
-    config.eval_freq_gf = 10
-    config.test_ratio = 0.1
+    config.vis_freq_gf = 1
+    config.test_ratio = 0.1 # for splitting the training set
+    config.vis_col = 2
 
     ''' Train SAC '''
     # file 

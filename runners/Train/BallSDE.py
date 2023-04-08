@@ -32,7 +32,7 @@ def snapshot(env, file_name):
     img = env.render(img_size=256)
     cv2.imwrite(file_name, img)
 
-def collect_data(env, env_name, num_samples, num_boxes, is_random=False, suffix=''):
+def collect_ball_dataset(env, env_name, num_samples, num_boxes, is_random=False, suffix=''):
     exists_or_mkdir('./ExpertDatasets/')
     debug_path = f'./ExpertDatasets/{env_name}_{suffix}/'
     exists_or_mkdir(debug_path)
@@ -133,7 +133,7 @@ if __name__ == '__main__':
     else:
         print('### not found existding dataset, start collecting data ###')
         ts = time.time()
-        data_samples = collect_data(env, env_name, n_samples, num_per_class, is_random=False, suffix=args.data_name)
+        data_samples = collect_ball_dataset(env, env_name, n_samples, num_per_class, is_random=False, suffix=args.data_name)
         with open(dataset_path, 'wb') as f:
             pickle.dump(data_samples, f)
         dataset = torch.tensor(data_samples)
@@ -198,7 +198,7 @@ if __name__ == '__main__':
                 visualize_states(res.view(test_num, -1), env, writer, 4, epoch, suffix='Final Sample')
                 assert args.batch_size >= test_num
                 real_state_batch = torch.cat([real_data.x, real_data.c.unsqueeze(-1)], dim=-1)
-                real_grid = visualize_states(real_state_batch.view(-1, num_objs*3)[:test_num], env, writer, nrow=test_col, epoch=epoch, suffix='Training Data')
+                visualize_states(real_state_batch.view(-1, num_objs*3)[:test_num], env, writer, nrow=test_col, epoch=epoch, suffix='Training Data')
                 
                 # save model
                 with open(ckpt_path + f'score.pt', 'wb') as f:

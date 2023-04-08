@@ -1,6 +1,6 @@
 import math
 import copy
-
+from ipdb import set_trace
 import numpy as np
 from scipy import integrate
 
@@ -21,9 +21,11 @@ def diffusion_coeff(t, sigma):
 
 # for conditional room arrangement
 # irrelevant to state, size dim
-def loss_fn_cond(model, x, batchsize, marginal_prob_std_func, eps=1e-5):
-    wall_batch, obj_batch = x
-    random_t = torch.rand(batchsize, device=device) * (1. - eps) + eps
+def loss_fn_cond(model, x, marginal_prob_std_func, batch_size, eps=1e-5):
+    wall_batch, obj_batch, _ = x
+    wall_batch = wall_batch.to(device)
+    obj_batch = obj_batch.to(device)
+    random_t = torch.rand(batch_size, device=device) * (1. - eps) + eps
     # -> [bs, 1]
     random_t = random_t.unsqueeze(-1)
     # [bs, 1] -> [num_nodes, 1]
@@ -179,6 +181,5 @@ def cond_ode_vel_sampler(
         x = torch.cat([new_pos, new_ori], dim=-1)
 
         xs.append(x.cpu().unsqueeze(0).clone())
-
-    return torch.cat(xs, dim=0), xs[-1]
+    return torch.cat(xs, dim=0), xs[-1][0]
 

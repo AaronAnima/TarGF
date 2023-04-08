@@ -109,12 +109,15 @@ if __name__ == '__main__':
     # split train and test
     test_col = 2
     
-    dataset = GraphDataset(f'{args.data_name}', args.base_noise_scale)
+    dataset = GraphDataset(f'{args.data_name}', base_noise_scale=args.base_noise_scale)
     
-    train_dataset, test_dataset, infos= split_dataset(dataset,
-                                                       args.seed,
-                                                       args.test_ratio,
-                                                       full_train=args.full_train)
+    train_dataset, test_dataset, infos= split_dataset(
+        dataset,
+        args.seed,
+        args.test_ratio,
+        full_train=args.full_train
+    )
+    test_dataset.dataset.is_numpy = True
     dataloader_train = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.workers)
     dataloader_test = DataLoader(test_dataset, batch_size=test_col**2, shuffle=True, num_workers=args.workers)
 

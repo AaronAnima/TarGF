@@ -61,7 +61,7 @@ def split_dataset(dataset, seed, test_ratio, full_train='False'):
 
 
 class GraphDataset:
-    def __init__(self, data_name, is_numpy=False, base_noise_scale=0.01, data_ratio=1):
+    def __init__(self, data_name, is_for_rl=False, return_names=True, base_noise_scale=0.01, data_ratio=1):
         self.data_root = f'./expert_datasets/{data_name}/content'
         self.folders_path = os.listdir(self.data_root)
         self.items = []
@@ -91,7 +91,8 @@ class GraphDataset:
         self.draw_histogram()
 
         self.mode = 'multi' if len(self.items_dict.keys()) > 1 else 'single'
-        self.is_numpy = is_numpy # if False, then return numpy objects
+        self.is_for_rl = is_for_rl # if False, then return numpy objects
+        self.return_names = return_names
 
     def draw_histogram(self):
         plt.figure(figsize=(10, 10))
@@ -114,7 +115,7 @@ class GraphDataset:
             wall_feat = pickle.load(f)
         with open(item_path['obj_path'], 'rb') as f:
             obj_batch = pickle.load(f)
-        if self.is_numpy:
+        if self.is_for_rl:
             return wall_feat, obj_batch, item_path['room_name']
         
         ''' else, we prepro numpy data into tensors/graphs ''' 
@@ -125,11 +126,13 @@ class GraphDataset:
         data_obj = Data(x=obj_batch[:, 0:self.state_dim].float(),
                         geo=obj_batch[:, self.state_dim:self.state_dim + self.size_dim].float(),
                         category=obj_batch[:, -1:].long(),
-                        edge_index=edge_obj,
-                        wall_feat=wall_feat)
+                        edge_index=edge_obj)
         # augment the data with slight perturbation
         scale = self.scale
 
         data_obj.x += torch.cat([torch.randn_like(data_obj.x[:, 0:2]), torch.zeros_like(data_obj.x[:, 2:4])],
                                 dim=1) * scale
-        return data_obj
+        if self.return_names:
+            return wall_feat, data_obj, item_path['room_name']
+
+        return wall_feat, data_obj
