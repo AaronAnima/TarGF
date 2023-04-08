@@ -113,11 +113,11 @@ def cond_ode_vel_sampler(
         test_batch,
         t0=1.,
         eps=1e-3,
-        num_steps=100,
+        num_steps=500,
         batch_size=1,
-        max_pos_vel=0.4,
-        max_ori_vel=0.2,
-        scale=1e-4,
+        max_pos_vel=0.6,
+        max_ori_vel=0.6,
+        scale=0.04,
         device='cuda',
 ):
     wall_batch, obj_batch, _ = test_batch

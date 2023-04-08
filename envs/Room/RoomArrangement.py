@@ -16,16 +16,8 @@ from gym import spaces
 from igibson.scene_loader import Simulator
 from igibson.scenes.igibson_indoor_scene import InteractiveIndoorScene
 
-import os
-import sys
-from os.path import join as pjoin
-
-BASEPATH = os.path.dirname(__file__)
-sys.path.insert(0, pjoin(BASEPATH, '..'))
-sys.path.insert(0, pjoin(BASEPATH, '..', '..'))
-
-from Envs.Room.RoomCONSTANTS import bedroom_type_mapping, bedroom_typeidx_mapping, livingroom_type_mapping, livingroom_typeidx_mapping, RESET_BROWNIAN_STEPS, room_lateralFriction
-from room_utils import GraphDataset4RL, split_dataset
+from envs.Room.RoomCONSTANTS import bedroom_type_mapping, bedroom_typeidx_mapping, livingroom_type_mapping, livingroom_typeidx_mapping, RESET_BROWNIAN_STEPS, room_lateralFriction
+from utils.datasets import GraphDataset, split_dataset
 
 
 class MySimulator:
@@ -806,7 +798,7 @@ class RLEnvDynamic:
             self.action_space = spaces.Box(-self.max_vel, self.max_vel, shape=(fix_num * 3,), dtype=np.float32)
             self.observation_space = spaces.Box(-1, 1, shape=((fix_num + 1 + 1) * 7,), dtype=np.float32)
 
-        self.tar_dataset = GraphDataset4RL(f'{tar_data_name}')
+        self.tar_dataset = GraphDataset(f'{tar_data_name}', is_numpy=True)
 
         ''' set expert dataset '''
         train_dataset, test_dataset, infos_dict = split_dataset(self.tar_dataset, seed=test_seed, test_ratio=test_ratio)
@@ -941,7 +933,7 @@ class RLEnvFull:
         self.exp_kwargs = exp_configs
         self.room_type = room_type
         self.is_gui = is_gui
-        self.tar_dataset = GraphDataset4RL(f'{tar_data_name}')
+        self.tar_dataset = GraphDataset(f'{tar_data_name}', is_numpy=True)
 
         train_dataset, test_dataset, infos_dict = split_dataset(self.tar_dataset, seed=test_seed, test_ratio=test_ratio)
 

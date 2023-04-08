@@ -1,40 +1,46 @@
 # Modified from Yang Song's repo: https://github.com/yang-song/score_sde_pytorch
+import os
 from absl import app
 from absl import flags
 from ml_collections.config_flags import config_flags
-import logging
-import os
-import tensorflow as tf
+from torch.utils.tensorboard import SummaryWriter
+from ipdb import set_trace
+
+from runners.train_targf import gf_trainer
+# from runners.train_targf_sac import sac_trainer
+# from runners.eval_policy import evaluate
+from utils.misc import exists_or_mkdir
 
 FLAGS = flags.FLAGS
 
 config_flags.DEFINE_config_file("config", None, "Training configuration.", lock_config=True)
 flags.DEFINE_string("workdir", None, "Work directory.")
-flags.DEFINE_enum("mode", None, ["train", "eval"], "Running mode: train or eval")
-flags.DEFINE_string("eval_folder", "eval", "The folder name for storing evaluation results")
+flags.DEFINE_enum("mode", None, ["train_gf", "train_sac", "eval"], "Running mode: train or eval")
 flags.mark_flags_as_required(["workdir", "config", "mode"])
 
 
 def main(argv):
-  if FLAGS.mode == "train":
-    # Create the working directory
-    tf.io.gfile.makedirs(FLAGS.workdir)
-    # Set logger so that it outputs to both console and file
-    # Make logging work for both disk and Google Cloud Storage
-    gfile_stream = open(os.path.join(FLAGS.workdir, 'stdout.txt'), 'w')
-    handler = logging.StreamHandler(gfile_stream)
-    formatter = logging.Formatter('%(levelname)s - %(filename)s - %(asctime)s - %(message)s')
-    handler.setFormatter(formatter)
-    logger = logging.getLogger()
-    logger.addHandler(handler)
-    logger.setLevel('INFO')
-    # Run the training pipeline
-    run_lib.train(FLAGS.config, FLAGS.workdir)
-  elif FLAGS.mode == "eval":
-    # Run the evaluation pipeline
-    run_lib.evaluate(FLAGS.config, FLAGS.workdir, FLAGS.eval_folder)
-  else:
-    raise ValueError(f"Mode {FLAGS.mode} not recognized.")
+    # create log dirs
+    exists_or_mkdir('./logs')
+    exists_or_mkdir(os.path.join('./logs', FLAGS.workdir))
+    if FLAGS.mode == "train_gf":
+        exists_or_mkdir(os.path.join('./logs', FLAGS.workdir, 'test_videos'))
+        tb_path = os.path.join('./logs', FLAGS.workdir, 'tb')
+        exists_or_mkdir(tb_path)
+        writer = SummaryWriter(tb_path)
+        # Run the training pipeline
+        gf_trainer(FLAGS.config, FLAGS.workdir, writer)
+    elif FLAGS.mode == "train_sac":
+        tb_path = os.path.join('./logs', FLAGS.workdir, 'tb')
+        exists_or_mkdir(tb_path)
+        writer = SummaryWriter(tb_path)
+        # Run the training pipeline
+        sac_trainer(FLAGS.config, FLAGS.workdir, writer)
+    elif FLAGS.mode == "eval":
+        # Run the evaluation pipeline
+        evaluate(FLAGS.config, FLAGS.workdir)
+    else:
+        raise ValueError(f"Mode {FLAGS.mode} not recognized.")
 
 
 if __name__ == "__main__":
