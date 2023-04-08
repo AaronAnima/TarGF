@@ -1057,7 +1057,6 @@ class RLEnvFull:
 
 class SceneSampler:
     def __init__(self,
-                 room_type,
                  gui='pbgui',
                  scene_source="THREEDFRONT",
                  floating_to_planar=False,
@@ -1065,7 +1064,7 @@ class SceneSampler:
                  proxy_dict={'padding': 0, 'margin': 0, 'proxy_height': 0.5},
                  resize_dict={'bed':0.8, 'shelf':0.8}
         ):
-        self.room_type = room_type
+        self.room_type = 'bedroom'
         self.gui = gui
         self.scene_source = scene_source
         data_root_path = igibson.threedfront_dataset_path
