@@ -6,30 +6,31 @@ import pickle
 
 from score_matching.sde import marginal_prob_std, diffusion_coeff, score_to_action
 from utils.preprocesses import prepro_graph_batch
+from networks import * # for pickle load
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 
-def load_targf(configs):
+def load_targf(configs, max_action):
     tar_path = f'./logs/{configs.score_exp}/score.pt'
 
     with open(tar_path, 'rb') as f:
         score = pickle.load(f)
 
-    return TarGF(score.to(device), configs)
+    return TarGF(score.to(device), configs, max_action)
 
 
 class TarGF:
-    def __init__(self, score_net, configs):
+    def __init__(self, score_net, configs, max_action):
         self.configs = configs
 
         self.score_net = score_net
-        self.max_vel = configs.max_vel
+        self.max_action = max_action
         self.marginal_prob_std_fn = functools.partial(marginal_prob_std, sigma=configs.sigma)
         self.diffusion_coeff_fn = functools.partial(diffusion_coeff, sigma=configs.sigma)
 
-    def get_score(self, state_inp, t0):
+    def get_gradient(self, state_inp, t0, for_reward):
         if self.configs.env_type == 'Room':
             if not torch.is_tensor(state_inp[0]):
                 state_inp = prepro_graph_batch([state_inp])
@@ -37,7 +38,8 @@ class TarGF:
             t = torch.tensor([t0] * bs)[state_inp[1].batch].unsqueeze(1).to(device) # [num_nodes, 1]
             out_score = self.score_net(state_inp, t) 
             out_score = out_score.detach()
-            out_score = score_to_action(out_score, state_inp[-1].x)
+            if not for_reward:
+                out_score = score_to_action(out_score, state_inp[-1].x)
         elif self.configs.env_type == 'Ball':
             # construct graph-input for score network
             if not torch.is_tensor(state_inp):
@@ -59,12 +61,12 @@ class TarGF:
             
         return out_score
 
-    def inference(self, state_inp, t0, is_numpy=True, is_norm=True, empty=False):
+    def inference(self, state_inp, t0, is_numpy=True, is_norm=True, empty=False, for_reward=False):
         if not empty:
-            out_score = self.get_score(state_inp, t0)
+            out_score = self.get_gradient(state_inp, t0, for_reward)
             if is_norm:
                 out_score = out_score * torch.min(
-                    torch.tensor([1, self.max_vel / (torch.max(torch.abs(out_score)) + 1e-7)]).to(device))
+                    torch.tensor([1, self.max_action / (torch.max(torch.abs(out_score)) + 1e-7)]).to(device))
             else:
                 out_score = out_score
         else:

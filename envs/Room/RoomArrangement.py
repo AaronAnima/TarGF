@@ -664,7 +664,7 @@ class RLEnv:
         self.pos_rate = exp_kwargs['pos_rate']
         self.ori_rate = exp_kwargs['ori_rate']
         self.max_vel = exp_kwargs['max_vel']
-        self.max_horizon = exp_kwargs['max_horizon']
+        self.max_episode_len = exp_kwargs['max_episode_len']
         self.obj_num = len(self.sim.objects_by_name) - 2
         self.cur_step_num = 0
         self.cur_steps = 0
@@ -718,7 +718,7 @@ class RLEnv:
         collision_num /= 8.0
 
         self.cur_step_num += 1
-        done = self.cur_step_num >= self.max_horizon
+        done = self.cur_step_num >= self.max_episode_len
         return self.sim.get_state(), 0, done, {'collision_num': collision_num, 'cur_steps': self.cur_steps}
 
     def reset(self, flip=True, rotate=True, brownian=True, flip_rotate_params=None):
@@ -769,7 +769,7 @@ class RLEnvDynamic:
     def __init__(
         self,
         tar_data_name='M12D25_Target_obj38_1_1_tr04_sr05_ss05_bs5_bsa1_bsn0_sbs0_preb0',
-        exp_configs={'max_vel': 4, 'pos_rate': 1, 'ori_rate': 1, 'max_horizon': 250},
+        exp_configs={'max_vel': 4, 'pos_rate': 1, 'ori_rate': 1, 'max_episode_len': 250},
         meta_name='M12D25_Support_obj38_50_20_tr04_sr05_ss05_bs5_bsa2_bsn1000_sbs5_preb5_bedroom_proxy',
         is_gui=False,
         room_type='bedroom',
@@ -798,14 +798,14 @@ class RLEnvDynamic:
             self.action_space = spaces.Box(-self.max_vel, self.max_vel, shape=(fix_num * 3,), dtype=np.float32)
             self.observation_space = spaces.Box(-1, 1, shape=((fix_num + 1 + 1) * 7,), dtype=np.float32)
 
-        self.tar_dataset = GraphDataset(f'{tar_data_name}', is_numpy=True)
+        self.tar_dataset = GraphDataset(f'{tar_data_name}', is_for_rl=True)
 
         ''' set expert dataset '''
         train_dataset, test_dataset, infos_dict = split_dataset(self.tar_dataset, seed=test_seed, test_ratio=test_ratio)
 
         # len(self.room_metas_dict.keys()) == 903
         ''' set init states dataset '''
-        with open(f'./ExpertDatasets/{meta_name}.pickle', 'rb') as f:
+        with open(f'./expert_datasets/{meta_name}.pickle', 'rb') as f:
             self.room_metas_dict = pickle.load(f)
 
         # total: 839 rooms
@@ -845,6 +845,10 @@ class RLEnvDynamic:
     @property
     def obj_number(self):
         return self.sim.obj_num
+    
+    @property
+    def max_episode_len(self):
+        return self.sim.max_episode_len
 
     def reset(self, room_name=None, goal=None, flip=False, rotate=False, brownian=False, is_random_sample=True, flip_rotate_params=None):
         # is_random_sample: whether random sample room name
@@ -908,7 +912,7 @@ class RLEnvFull:
     def __init__(
             self,
             tar_data_name='UnshuffledRoomMeta',
-            exp_configs={'max_vel': 4, 'pos_rate': 1, 'ori_rate': 1, 'max_horizon': 250},
+            exp_configs={'max_vel': 4, 'pos_rate': 1, 'ori_rate': 1, 'max_episode_len': 250},
             meta_name='ShuffledRoomMeta',
             is_gui=False,
             room_type='bedroom',
@@ -948,7 +952,7 @@ class RLEnvFull:
         self.exp_data = np.stack(self.exp_data)
 
         ''' init room names '''
-        with open(f'./ExpertDatasets/{meta_name}.pickle', 'rb') as f:
+        with open(f'./expert_datasets/{meta_name}.pickle', 'rb') as f:
             self.room_metas_dict = pickle.load(f)
         self.room_names = []
         dataset = train_dataset if split == 'train' else test_dataset

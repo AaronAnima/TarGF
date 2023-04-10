@@ -45,11 +45,12 @@ def get_default_config():
     config.residual_t0 = 0.01
     # train 
     config.discount = 0.95
-    config.start_timesteps = 25e2
+    config.start_timesteps = 100
     config.max_timesteps = 5e5
-    config.batch_size_sac = 256
+    config.batch_size_rl = 256
     config.tau = 0.005
     config.policy_freq = 1
+    config.buffer_size = 1e6
     # reward
     config.reward_t0 = 0.01
     config.reward_mode = 'densityIncre'
@@ -58,8 +59,8 @@ def get_default_config():
     config.reward_freq = 1
     config.normalize_reward = True
     # eval
-    config.eval_freq_sac = 100
-    config.eval_col = 5
+    config.eval_freq_rl = 1
+    config.eval_col = 2
     config.eval_num = config.eval_col**2
 
     ''' ORCA '''

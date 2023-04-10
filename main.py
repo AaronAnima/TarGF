@@ -7,7 +7,7 @@ from torch.utils.tensorboard import SummaryWriter
 from ipdb import set_trace
 
 from runners.train_gf import gf_trainer
-from runners.train_rl import sac_trainer
+from runners.train_rl import rl_trainer
 # from runners.eval_policy import evaluate
 from utils.misc import exists_or_mkdir
 
@@ -15,7 +15,7 @@ FLAGS = flags.FLAGS
 
 config_flags.DEFINE_config_file("config", None, "Training configuration.", lock_config=True)
 flags.DEFINE_string("workdir", None, "Work directory.")
-flags.DEFINE_enum("mode", None, ["train_gf", "train_sac", "eval"], "Running mode: train or eval")
+flags.DEFINE_enum("mode", None, ["train_gf", "train_rl", "eval_targf_sac", "eval_targf_orca"], "Running mode: train modules or eval policies")
 flags.mark_flags_as_required(["workdir", "config", "mode"])
 
 
@@ -30,13 +30,13 @@ def main(argv):
         writer = SummaryWriter(tb_path)
         # Run the training pipeline
         gf_trainer(FLAGS.config, FLAGS.workdir, writer)
-    elif FLAGS.mode == "train_sac":
+    elif FLAGS.mode == "train_rl":
         tb_path = os.path.join('./logs', FLAGS.workdir, 'tb')
         exists_or_mkdir(tb_path)
         writer = SummaryWriter(tb_path)
         # Run the training pipeline
-        sac_trainer(FLAGS.config, FLAGS.workdir, writer)
-    elif 'eval' in FLAGS.mode: # FLAGS.mode in ['eval_sac', 'eval_orca']
+        rl_trainer(FLAGS.config, FLAGS.workdir, writer)
+    elif 'eval' in FLAGS.mode: # FLAGS.mode in ['eval_targf_sac', 'eval_targf_orca']
         policy_type = (FLAGS.mode).split('_')[-1]
         # Run the evaluation pipeline
         evaluate(FLAGS.config, FLAGS.workdir, policy_type=policy_type)

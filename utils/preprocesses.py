@@ -40,6 +40,7 @@ def prepro_dynamic_graph(state, state_dim=4, cuda=False):
         data_obj = data_obj.to(device)
     return wall_feat, data_obj
 
+
 def prepro_state(state, state_dim=4, cuda=False):
     wall_feat, obj_batch = state
     wall_feat = torch.tensor(wall_feat).float()
@@ -53,11 +54,6 @@ def prepro_state(state, state_dim=4, cuda=False):
         wall_feat = wall_feat.to(device)
         data_obj = data_obj.to(device)
     return wall_feat, data_obj
-
-def pre_pro_dynamic_vec(vec, dim=1, cuda=False):
-    vec = torch.tensor(vec).view(-1, dim).float()
-    data = Data(x=vec)
-    return data
 
 def prepro_graph_batch(states):
     if not isinstance(states[0][-1], Data):
@@ -88,10 +84,3 @@ def prepro_graph_batch(states):
     edge_index = knn_graph(x, k=10, batch=samples_batch)
     obj_batch = Data(x=x, edge_index=edge_index, batch=samples_batch, ptr=ptr, geo=geo, category=category)
     return wall_batch, obj_batch
-
-def batch_to_data_list(my_graph_batch, ref_batch):
-    wall_feats = [item[0].numpy() for item in ref_batch[0].cpu()]
-    obj_batch_large = torch.cat([my_graph_batch[0].cpu(), ref_batch[1].geo.cpu(), ref_batch[1].category.cpu()], dim=-1).cpu().numpy()
-    ptr = ref_batch[1].ptr
-    obj_batchs = [obj_batch_large[ptr[i]:ptr[i+1], :] for i in range(ref_batch[0].shape[0])]
-    return [prepro_state((wall_feat, obj_batch)) for wall_feat, obj_batch in zip(wall_feats, obj_batchs)]

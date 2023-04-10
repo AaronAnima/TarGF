@@ -2,14 +2,19 @@ import numpy as np
 import torch
 import random
 import os
-from torchvision.utils import make_grid
 from tqdm import trange
 import pickle
+import gym
+import ebor
+from ipdb import set_trace
+import functools
+from collections import OrderedDict
 
-from algorithms.sac import MASAC, ReplayBuffer
-from planners.targf_base import load_target_score
+from planners.sac.sac import MASAC, ReplayBuffer
+from score_matching.targf import load_targf
 from utils.misc import Timer, RewardNormalizer
-from envs.Room.RoomArrangement import RLEnvDynamic, SceneSampler
+from utils.evaluations import eval_room_policy, eval_ball_policy
+from envs.Room.RoomArrangement import RLEnvDynamic
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -19,17 +24,18 @@ class RewardSampler:
         self,
         normalizer_sim,
         normalizer_col,
-        target_score,
+        targf,
         configs,
     ):
         self.normalizer_sim = normalizer_sim
         self.normalizer_col = normalizer_col
-        self.target_score = target_score
+        self.targf = targf
         self.reward_mode = configs.reward_mode
         self.reward_freq = configs.reward_freq
         self.lambda_sim = configs.lambda_sim
         self.lambda_col = configs.lambda_col
         self.t0 = configs.t0
+        self.configs = configs
 
     def get_reward(self, info, cur_state, new_state, is_eval=False):
         collision_reward = self.get_collision_reward(info)
@@ -52,8 +58,8 @@ class RewardSampler:
         if self.configs.env_type == 'Room':
             state_change = new_state[-1][:, 0:4] - cur_state[-1][:, 0:4] # delta_state: [num_nodes, 2]
         elif self.configs.env_type == 'Ball':
-            new_state = new_state.reshape((-1, 3))[:, :2].reshape(-1)
-            cur_state = cur_state.reshape((-1, 3))[:, :2].reshape(-1)
+            new_state = new_state.reshape((-1, 3))[:, :2]
+            cur_state = cur_state.reshape((-1, 3))[:, :2]
             state_change = new_state - cur_state
         else:
             raise ValueError(f"Mode {self.configs.env_type} not recognized.")
@@ -61,7 +67,7 @@ class RewardSampler:
 
     def get_similarity_reward(self, info, cur_state, new_state):
         if self.reward_mode == 'densityIncre':
-            cur_score = self.target_score.get_score(cur_state, t0=self.t0, is_norm=False) # cur_score: [num_nodes, 2]
+            cur_score = self.targf.inference(cur_state, t0=self.t0, is_norm=False, for_reward=True) # cur_score: [num_nodes, 2]
             state_change = self.get_state_change(cur_state, new_state)
             similarity_reward = np.sum(state_change * cur_score)
             similarity_reward *= (info['cur_steps'] % self.reward_freq == 0)
@@ -71,91 +77,49 @@ class RewardSampler:
         return similarity_reward
 
 
-def eval_policy(eval_env, eval_policy, reward_func, writer, eval_episodes, eval_idx, visualise=True):
-    episode_reward = 0
-    episode_similarity_reward = 0
-    episode_collision_reward = 0
-    # collect meta-datas for follow-up visualisations
-    vis_states = []
-    room_names = []
-    for _ in range(eval_episodes):
-        state, done = eval_env.reset(), False
-        cur_vis_states = []
-        cur_vis_states.append(state)
-        while not done:
-            action = eval_policy.select_action(state, sample=False)
-            next_state, _, done, infos = eval_env.step(action)
-            reward, reward_similarity, reward_collision = reward_func.get_reward(info=infos, cur_state=state, new_state=next_state, is_eval=True)
-            state = next_state 
-            episode_reward += reward.sum().item()
-            episode_similarity_reward += reward_similarity.sum().item()
-            episode_collision_reward += reward_collision.sum().item()
-        cur_vis_states.append(state)
-        room_names.append(eval_env.sim.name)
-        vis_states.append(cur_vis_states)
-    
-    episode_reward /= eval_episodes
-    episode_similarity_reward /= eval_episodes
-    episode_collision_reward /= eval_episodes
-
-    ''' log eval metrics '''
-    writer.add_scalars('Eval/Compare',
-                       {'total': episode_reward,
-                        'collision': episode_collision_reward,
-                        'similarity': episode_similarity_reward},
-                        eval_idx)
-    writer.add_scalar('Eval/Total', episode_reward, eval_idx)
+def get_env(configs):
+    if configs.env_type == 'Room': 
+        tar_data = 'UnshuffledRoomsMeta'
+        exp_kwconfigs = {
+            'max_vel': configs.max_vel,
+            'pos_rate': 1,
+            'ori_rate': 1,
+            'max_episode_len': configs.horizon,
+        }
+        env = RLEnvDynamic(
+            tar_data,
+            exp_kwconfigs,
+            meta_name='ShuffledRoomsMeta',
+            is_gui=False,
+            fix_num=None, 
+            split='train', # determine initialising on which split of rooms
+        )
+        max_action = configs.max_vel
+    elif configs.env_type == 'Ball':
+        env_name = '{}-{}Ball{}Class-v0'.format(configs.pattern, configs.num_objs, configs.num_classes)
+        env = gym.make(env_name)
+        env.seed(configs.seed)
+        env.reset()
+        max_action = env.action_space['obj1']['linear_vel'].high[0]
+    else:
+        raise ValueError(f"Mode {configs.env_type} not recognized.")
+    return env, max_action
 
 
-    ''' visualise the terminal states '''
-    if visualise:
-        # the real-sense image can only be rendered by scene-sampler (instead of proxy simulator for RL)
-        eval_env.close()
-        sampler = SceneSampler('bedroom', gui='DIRECT', resize_dict={'bed': 0.8, 'shelf': 0.8})
-        imgs = []
-        for state, room_name in zip(vis_states, room_names):
-            # order: GT -> init -> terminal
-            sim = sampler[room_name]
-            sim.normalize_room()
-
-            # vis GT state
-            img = sim.take_snapshot(512, height=10.0)
-            imgs.append(img)
-
-            # vis init/terminal state
-            for state_item in state:
-                sim.set_state(state_item[1], state_item[0])
-                img = sim.take_snapshot(512, height=10.0)
-                imgs.append(img)
-
-            # close env after rendering
-            sim.disconnect()
-        batch_imgs = np.stack(imgs, axis=0)
-        ts_imgs = torch.tensor(batch_imgs).permute(0, 3, 1, 2)
-        grid = make_grid(ts_imgs.float(), padding=2, nrow=3, normalize=True)
-        writer.add_image(f'Images/igibson_terminal_states', grid, eval_idx)
+def get_functions(configs, env, reward_func):
+    if configs.env_type == 'Room': 
+        eval_fn = functools.partial(eval_room_policy, reward_func=reward_func)
+    elif configs.env_type == 'Ball':
+        eval_fn = functools.partial(eval_ball_policy, nrow=configs.eval_col, pdf_func=env.pseudo_likelihoods)
+    else:
+        raise ValueError(f"Mode {configs.env_type} not recognized.")
+    return eval_fn
 
 
-def sac_trainer(configs, log_dir, writer):
+def rl_trainer(configs, log_dir, writer):
 
     ''' init my env '''
-    MAX_VEL = configs.max_vel
-    tar_data = 'UnshuffledRoomsMeta'
-    exp_kwconfigs = {
-        'max_vel': MAX_VEL,
-        'pos_rate': 1,
-        'ori_rate': 1,
-        'max_horizon': configs.horizon,
-    }
-    env = RLEnvDynamic(
-        tar_data,
-        exp_kwconfigs,
-        meta_name='ShuffledRoomsMeta',
-        is_gui=False,
-        fix_num=None, 
-        is_single_room=(configs.is_single_room == 'True'),
-        split='train',
-    )
+    env, max_action = get_env(configs)
 
     ''' set seeds '''
     torch.manual_seed(configs.seed)
@@ -163,46 +127,41 @@ def sac_trainer(configs, log_dir, writer):
     random.seed(configs.seed)
 
     ''' Load Target Score '''
-    target_score = load_target_score(configs)
+    targf = load_targf(configs, max_action)
  
     ''' Set Timer '''
     # monitoring the time cost for each step
     timer = Timer(writer=writer)
 
     ''' Init Buffer '''
-    replay_buffer = ReplayBuffer(max_size=configs.buffer_size, timer=timer)
+    replay_buffer = ReplayBuffer(configs, timer=timer)
 
     reward_normalizer_sim = RewardNormalizer(configs.normalize_reward == 'True', writer, name='sim')
     reward_normalizer_col = RewardNormalizer(configs.normalize_reward == 'True', writer, name='col')
     reward_func = RewardSampler(
         reward_normalizer_sim,
         reward_normalizer_col,
-        target_score=target_score,
-        reward_mode=configs.reward_mode,
-        reward_freq=configs.reward_freq,
-        lambda_sim=configs.lambda_sim,
-        lambda_col=configs.lambda_col,
-        t0=configs.reward_t0,
+        targf=targf,
+        configs=configs
     )
 
+    ''' setup eval functions '''
+    eval_func = get_functions(configs, env, reward_func)
+
     ''' Init policy '''
-    kwconfigs = {
-        "max_action": MAX_VEL,
-        "discount": configs.discount,
-        "tau": configs.tau,
-        "policy_freq": configs.policy_freq,
+    kwargs = {
+        "max_action": max_action,
         "writer": writer,
-        "target_score": target_score,
-        "is_residual": configs.is_residual == 'True',
-        "hidden_dim": configs.hidden_dim,
-        "embed_dim": configs.embed_dim,
-        "residual_t0": configs.residual_t0,
+        "targf": targf,
         "timer": timer,
+        "configs": configs,
     }
-    policy = MASAC(**kwconfigs)
+    policy = MASAC(**kwargs)
 
     ''' Start Training Episodes '''
     state, done = env.reset(), False
+    if isinstance(state, OrderedDict):
+        state = env.flatten_states([state])[0]
     episode_reward = 0
     episode_similarity_reward = 0
     episode_collision_reward = 0
@@ -216,6 +175,8 @@ def sac_trainer(configs, log_dir, writer):
         # Select action randomly or according to policy
         if t < configs.start_timesteps:
             action = env.sample_action()
+            if isinstance(action, OrderedDict):
+                action = env.flatten_actions([action])[0]
         else:
             timer.set()
             action = policy.select_action(state, sample=True)
@@ -224,11 +185,13 @@ def sac_trainer(configs, log_dir, writer):
         # Perform action
         timer.set()
         next_state, _, done, infos = env.step(action)
+        if isinstance(next_state, OrderedDict):
+            next_state = env.flatten_states([next_state])[0]
         reward, reward_similarity, reward_collision = reward_func.get_reward(info=infos, cur_state=state, new_state=next_state)
         timer.log('step_reward')
 
 
-        done_bool = float(done) if episode_timesteps < configs.horizon else 0
+        done_bool = float(done) if episode_timesteps < env.max_episode_len else 0
 
         timer.set()
         # Store data in replay buffer
@@ -243,7 +206,7 @@ def sac_trainer(configs, log_dir, writer):
         # Train agent after collecting sufficient data
         if t >= configs.start_timesteps:
             timer.set()
-            policy.train(replay_buffer, configs.batch_size)
+            policy.train(replay_buffer, configs.batch_size_rl)
             timer.log('train_step')
 
         if done:
@@ -260,7 +223,8 @@ def sac_trainer(configs, log_dir, writer):
             writer.add_scalar('Episode_rewards/Total Reward', episode_reward, episode_num + 1)
 
             # Evaluate episode, save model before eval
-            if (episode_num+1) % configs.eval_freq == 0:
+            if (episode_num + 1) % configs.eval_freq_rl == 0:
+                # save models
                 print('------Now Save Models!------')
                 ckpt_path = os.path.join('./logs', log_dir, 'policy.pickle')
                 with open(ckpt_path, 'wb') as f:
@@ -269,13 +233,16 @@ def sac_trainer(configs, log_dir, writer):
                     pickle.dump(policy, f)
                 policy.writer = writer
                 policy.timer = timer
+                # eval cur policy
                 print('------Now Start Eval!------')
                 eval_num = configs.eval_num     
-                eval_policy(env, policy, reward_func, writer, eval_episodes=eval_num, eval_idx=episode_num+1)
+                eval_func(env, policy, writer, eval_episodes=eval_num, eval_idx=episode_num+1)
                 print(f'log_dir: {log_dir}')
             
             # Reset environment
             state, done = env.reset(), False
+            if isinstance(state, OrderedDict):
+                state = env.flatten_states([state])[0]
             episode_reward = 0
             episode_collision_reward = 0
             episode_similarity_reward = 0

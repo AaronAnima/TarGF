@@ -27,19 +27,19 @@ def get_config():
     config.vis_col = 2
     config.sampling_steps = 500
 
-    ''' Train SAC '''
+    ''' Train RL '''
     # file 
-    config.score_exp = 'Room_Score'
+    config.score_exp = 'Room_Score_rebuild'
     # env
     config.horizon = 250
     config.max_vel = 4. 
     # train 
     config.max_timesteps = 1e6
-    config.batch_size_sac = 256
+    config.batch_size_rl = 256
     config.discount = 0.95
     config.tau = 0.005
     config.policy_freq = 1
-    config.start_timesteps = 25e2
+    config.start_timesteps = 1e2
     config.residual_t0 = 0.01
     config.buffer_size = 1e6
     config.is_residual = True 
@@ -51,7 +51,7 @@ def get_config():
     config.reward_t0 = 0.01
     config.normalize_reward = True
     # eval
-    config.eval_freq_sac = 50
+    config.eval_freq_rl = 1
     config.eval_num = 4
 
     return config

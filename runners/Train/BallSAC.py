@@ -167,7 +167,7 @@ class RewardSampler:
         return similarity_reward
 
 
-def eval_metric(eval_env, policy, pdf_func, eval_episodes=100):
+def eval_metric(eval_env, policy, pdf_func, writer, eval_idx, nrow=4, eval_episodes=100):
     horizon = eval_env.max_episode_len
     episode_delta_likelihoods = []
     episode_avg_collisions = []
@@ -175,13 +175,11 @@ def eval_metric(eval_env, policy, pdf_func, eval_episodes=100):
     pdf = pdf_func
     for _ in trange(eval_episodes):
         state, done = eval_env.reset(is_random=True), False
-        state = env.flatten_states([state])[0] # flatten state!
         avg_collision = 0
         delta_likelihoods = -np.log(pdf([state]))
         while not done:
             action = policy.select_action(np.array(state), sample=False)
             state, _, done, infos = eval_env.step(action)
-            state = env.flatten_states([state])[0] # flatten state!
             collisions = infos['collision_num']
             avg_collision += np.sum(collisions)
         last_states.append(state)
@@ -195,8 +193,32 @@ def eval_metric(eval_env, policy, pdf_func, eval_episodes=100):
     mu_ac, std_ac = np.mean(episode_avg_collisions), np.std(episode_avg_collisions)
     print('----Delta Likelihood: {:.2f} +- {:.2f}'.format(mu_dl, std_dl))
     print('----Avg Collisions: {:.2f} +- {:.2f}'.format(mu_ac, std_ac))
-    return {'DL': {'mu': mu_dl, 'std': std_dl}, 'AC': {'mu': mu_ac, 'std': std_ac}, 'Results': last_states}
 
+    writer.add_scalars('Eval/Delta_Likelihood', {
+        'upper': mu_dl + std_dl,
+        'mean': mu_dl,
+        'lower': mu_dl - std_dl,
+    }, 
+    eval_idx)
+    writer.add_scalars('Eval/Average_Collision', {
+        'upper': mu_ac + std_ac,
+        'mean': mu_ac,
+        'lower': mu_ac - std_ac,
+    }, eval_idx)
+
+    eval_states = last_states[:nrow**2]
+    imgs = []
+    for obj_state in eval_states:
+        if not isinstance(obj_state, np.ndarray):
+            obj_state = obj_state.detach().cpu().numpy()
+        eval_env.set_state(obj_state)
+        img = eval_env.render(img_size=256)
+        imgs.append(img)
+    batch_imgs = np.stack(imgs, axis=0)
+    ts_imgs = torch.tensor(batch_imgs).permute(0, 3, 1, 2)
+    grid = make_grid(ts_imgs.float(), padding=2, nrow=nrow, normalize=True)
+    writer.add_image(f'Images/eval_terminal_states', grid, eval_idx)
+    
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -392,13 +414,8 @@ if __name__ == "__main__":
                 eval_num = args.eval_num
                 eval_col = args.eval_col
                 assert eval_col**2 <= eval_num
-                eval_infos = eval_metric(env, policy, pdf_func, eval_episodes=eval_num)
-                writer.add_scalars('Eval/Delta_Likelihood', {'upper': eval_infos['DL']['mu']+eval_infos['DL']['std'],
-                                                             'mean': eval_infos['DL']['mu'],
-                                                             'lower': eval_infos['DL']['mu']-eval_infos['DL']['std']}, episode_num)
-                writer.add_scalars('Eval/Average_Collision', {'upper': eval_infos['AC']['mu']+eval_infos['AC']['std'],
-                                                             'mean': eval_infos['AC']['mu'],
-                                                             'lower': eval_infos['AC']['mu']-eval_infos['AC']['std']}, episode_num)
+                eval_infos = eval_metric(env, policy, pdf_func, writer, eval_idx=episode_num+1, eval_episodes=eval_num)
+
                 # save best ckpt according to eval
                 if eval_infos['DL']['mu'] > best_delta_likelihood:
                     best_delta_likelihood = eval_infos['DL']['mu']

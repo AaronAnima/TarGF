@@ -43,7 +43,7 @@ def visualize_room_states(vis_states, ref_batch, writer, nrow, epoch, suffix):
     batch_imgs = np.stack(imgs, axis=0)
     ts_imgs = torch.tensor(batch_imgs).permute(0, 3, 1, 2)
     # each row: [synthesised, perturbed, GT]
-    grid = make_grid(ts_imgs.float(), padding=2, nrow=3, normalize=True)
+    grid = make_grid(ts_imgs.float(), padding=2, nrow=2, normalize=True)
     writer.add_image(f'Images/{suffix}', grid, epoch)
 
 # for ball rearrangement:
