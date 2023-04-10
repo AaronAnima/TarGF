@@ -7,7 +7,7 @@ from torch.utils.tensorboard import SummaryWriter
 from ipdb import set_trace
 
 from runners.train_targf import gf_trainer
-# from runners.train_targf_sac import sac_trainer
+from runners.train_targf_sac import sac_trainer
 # from runners.eval_policy import evaluate
 from utils.misc import exists_or_mkdir
 
@@ -36,9 +36,10 @@ def main(argv):
         writer = SummaryWriter(tb_path)
         # Run the training pipeline
         sac_trainer(FLAGS.config, FLAGS.workdir, writer)
-    elif FLAGS.mode == "eval":
+    elif 'eval' in FLAGS.mode:
+        policy_type = (FLAGS.mode).split('_')[-1]
         # Run the evaluation pipeline
-        evaluate(FLAGS.config, FLAGS.workdir)
+        evaluate(FLAGS.config, FLAGS.workdir, policy_type=policy_type)
     else:
         raise ValueError(f"Mode {FLAGS.mode} not recognized.")
 

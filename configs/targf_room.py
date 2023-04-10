@@ -22,7 +22,7 @@ def get_config():
     config.full_train = False
     config.base_noise_scale = 0.01
     # eval
-    config.vis_freq_gf = 1
+    config.vis_freq_gf = 20
     config.test_ratio = 0.1 # for splitting the training set
     config.vis_col = 2
     config.sampling_steps = 500
@@ -44,6 +44,7 @@ def get_config():
     config.buffer_size = 1e6
     config.is_residual = True 
     # reward
+    config.reward_mode = 'densityIncre'
     config.reward_freq = 1
     config.lambda_col = 1.0
     config.lambda_sim = 5.0
@@ -51,7 +52,6 @@ def get_config():
     config.normalize_reward = True
     # eval
     config.eval_freq_sac = 50
-    config.reward_mode = 'densityIncre'
     config.eval_num = 4
 
     return config

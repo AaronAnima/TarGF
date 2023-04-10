@@ -95,7 +95,7 @@ def get_functions(configs, env):
     if configs.env_type == 'Room': 
         sampler_fn = functools.partial(cond_ode_vel_sampler, num_steps=configs.sampling_steps)
         loss_fn = functools.partial(loss_fn_cond, batch_size=configs.batch_size_gf)
-        vis_fn = functools.partial(visualize_room_states, batch_size=configs.batch_size_gf)
+        vis_fn = visualize_room_states
     elif configs.env_type == 'Ball':
         sampler_fn = functools.partial(ode_sampler, num_objs=configs.num_objs, num_steps=configs.sampling_steps)
         loss_fn = functools.partial(loss_fn_uncond, num_objs=configs.num_objs)
