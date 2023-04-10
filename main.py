@@ -6,8 +6,8 @@ from ml_collections.config_flags import config_flags
 from torch.utils.tensorboard import SummaryWriter
 from ipdb import set_trace
 
-from runners.train_targf import gf_trainer
-from runners.train_targf_sac import sac_trainer
+from runners.train_gf import gf_trainer
+from runners.train_rl import sac_trainer
 # from runners.eval_policy import evaluate
 from utils.misc import exists_or_mkdir
 
@@ -36,7 +36,7 @@ def main(argv):
         writer = SummaryWriter(tb_path)
         # Run the training pipeline
         sac_trainer(FLAGS.config, FLAGS.workdir, writer)
-    elif 'eval' in FLAGS.mode:
+    elif 'eval' in FLAGS.mode: # FLAGS.mode in ['eval_sac', 'eval_orca']
         policy_type = (FLAGS.mode).split('_')[-1]
         # Run the evaluation pipeline
         evaluate(FLAGS.config, FLAGS.workdir, policy_type=policy_type)

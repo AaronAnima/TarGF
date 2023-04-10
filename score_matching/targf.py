@@ -4,27 +4,27 @@ from torch_geometric.nn import knn_graph
 import functools
 import pickle
 
-from algorithms.sgm import marginal_prob_std, diffusion_coeff, score_to_action
+from score_matching.sde import marginal_prob_std, diffusion_coeff, score_to_action
 from utils.preprocesses import prepro_graph_batch
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 
-def load_target_score(configs):
+def load_targf(configs):
     tar_path = f'./logs/{configs.score_exp}/score.pt'
 
     with open(tar_path, 'rb') as f:
         score = pickle.load(f)
 
-    return TargetScore(score.to(device), configs)
+    return TarGF(score.to(device), configs)
 
 
-class TargetScore:
-    def __init__(self, score, configs):
+class TarGF:
+    def __init__(self, score_net, configs):
         self.configs = configs
 
-        self.score = score
+        self.score_net = score_net
         self.max_vel = configs.max_vel
         self.marginal_prob_std_fn = functools.partial(marginal_prob_std, sigma=configs.sigma)
         self.diffusion_coeff_fn = functools.partial(diffusion_coeff, sigma=configs.sigma)
@@ -35,7 +35,7 @@ class TargetScore:
                 state_inp = prepro_graph_batch([state_inp])
             bs = state_inp[0].shape[0] # state_inp[0]: wall_feat
             t = torch.tensor([t0] * bs)[state_inp[1].batch].unsqueeze(1).to(device) # [num_nodes, 1]
-            out_score = self.score(state_inp, t) 
+            out_score = self.score_net(state_inp, t) 
             out_score = out_score.detach()
             out_score = score_to_action(out_score, state_inp[-1].x)
         elif self.configs.env_type == 'Ball':
@@ -52,7 +52,7 @@ class TargetScore:
             t = torch.tensor([t0]*bs).unsqueeze(1).to(device)
             inp_data = Data(x=positions, edge_index=edge_index, c=categories)
 
-            out_score = self.score(inp_data, t, self.configs.num_objs)
+            out_score = self.score_net(inp_data, t, self.configs.num_objs)
             out_score = out_score.detach()
         else:
             raise ValueError(f"Mode {self.configs.env_type} not recognized.")

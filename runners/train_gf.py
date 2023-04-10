@@ -16,10 +16,10 @@ from torch_geometric.data import Data
 
 from utils.datasets import split_dataset, GraphDataset, collect_ball_dataset
 from utils.visualisations import visualize_room_states, visualize_ball_states
-from algorithms.sgm import marginal_prob_std, diffusion_coeff
-from algorithms.sgm import loss_fn_cond, loss_fn_uncond
-from algorithms.sgm import cond_ode_vel_sampler, ode_sampler
-from algorithms.sgm_nets import CondScoreModelGNN, ScoreModelGNN
+from score_matching.sde import marginal_prob_std, diffusion_coeff
+from score_matching.sde import loss_fn_cond, loss_fn_uncond
+from score_matching.sde import cond_ode_vel_sampler, ode_sampler
+from networks.score_nets import CondScoreModelGNN, ScoreModelGNN
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -152,7 +152,7 @@ def gf_trainer(configs, log_dir, writer):
             writer.add_scalar('train_loss', loss, i + epoch*len(dataloader_train))
 
         # start eval
-        if (epoch+1) % configs.vis_freq_gf == 0:
+        if (epoch + 1) % configs.vis_freq_gf == 0:
             ref_batch = next(iter(dataloader_vis))
             with torch.no_grad():
                 _, res_ode_vel = sde_sampler_fn(
