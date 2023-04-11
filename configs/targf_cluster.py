@@ -1,56 +1,27 @@
-import ml_collections
+from configs.targf_ball_base import get_default_config
 
 def get_config():
-    config = ml_collections.ConfigDict()
-    config.env_type = 'Room'
+    config = get_default_config()
     
     ''' Train GF '''
     # file
-    config.data_name = 'UnshuffledRoomsMeta'
+    config.data_name = 'Cluster_Examples'
     # env
-    config.seed = 0
-    # train
-    config.n_epoches = 10000
-    config.batch_size_gf = 64
-    config.lr = 2e-4
-    config.t0 = 1e-1
-    config.beta1 = 0.9
-    config.workers = 8
-    config.hidden_dim = 128
-    config.embed_dim = 64
-    config.sigma = 25.
-    config.full_train = False
-    config.base_noise_scale = 0.01
-    # eval
-    config.vis_freq_gf = 1
-    config.test_ratio = 0.1 # for splitting the training set
-    config.vis_col = 2
+    config.pattern = 'Cluster'
 
     ''' Train SAC '''
     # file 
-    config.score_exp = 'Room_Score'
-    # env
-    config.horizon = 250
-    config.max_vel = 4. 
-    # train 
-    config.max_timesteps = 1e6
-    config.batch_size_sac = 256
-    config.discount = 0.95
-    config.tau = 0.005
-    config.policy_freq = 1
-    config.start_timesteps = 25e2
-    config.residual_t0 = 0.01
-    config.buffer_size = 1e6
-    config.is_residual = True 
+    config.score_exp = 'Cluster_Score'
     # reward
-    config.reward_freq = 1
-    config.lambda_col = 1.0
-    config.lambda_sim = 5.0
-    config.reward_t0 = 0.01
-    config.normalize_reward = True
-    # eval
-    config.eval_freq_sac = 50
-    config.reward_mode = 'densityIncre'
-    config.eval_num = 4
+    config.lambda_col = 5.0
+    config.lambda_sim = 1.0
+
+    ''' Eval Policy '''
+    config.policy_type = 'targf_sac' # ['targf_orca', 'targf_sac']
+    config.policy_exp = 'Cluster_SAC'
+    config.calc_metrics = True
+    config.save_videos = True
+    config.test_seeds = [5, 10, 15, 20, 25]
+    config.test_num = 4
 
     return config

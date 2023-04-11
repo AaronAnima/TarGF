@@ -69,10 +69,13 @@ def get_default_config():
     config.knn_orca = 2
 
     ''' Eval Policy '''
-    config.recover = False
-    config.test_num = 100
-    config.test_mode = 'full_metric'
-    config.policy_type = 'targf_orca' # ['targf_orca', 'targf_sac']
+    config.policy_type = 'targf_sac' # ['targf_orca', 'targf_sac']
+    config.policy_exp = 'CircleCluster_SAC_rebuild'
+    config.calc_metrics = True
+    config.save_videos = True
+    config.test_seeds = [5, 10, 15, 20, 25]
+    config.test_num = 4
+    config.recover = False 
 
 
     return config

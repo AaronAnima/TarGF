@@ -29,7 +29,7 @@ def get_config():
 
     ''' Train RL '''
     # file 
-    config.score_exp = 'Room_Score_rebuild'
+    config.score_exp = 'Room_Score'
     # env
     config.horizon = 250
     config.max_vel = 4. 
@@ -58,9 +58,9 @@ def get_config():
     config.policy_type = 'targf_sac' # for room: ['targf_sac']
     config.recover = True
     config.test_num = 2 # test set contains 83 different room-conditions
-    config.policy_exp = 'Room_SAC_rebuild'
+    config.policy_exp = 'Room_SAC'
     config.calc_metrics = True
     config.save_videos = True
-    config.test_seeds = [123, 234]
+    config.test_seeds = [5, 10, 15, 20, 25]
 
     return config
