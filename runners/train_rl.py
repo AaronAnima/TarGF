@@ -11,10 +11,12 @@ import functools
 from collections import OrderedDict
 
 from planners.sac.sac import MASAC, ReplayBuffer
+from planners.sac.targf_sac import TarGFSACPlanner
 from score_matching.targf import load_targf
 from utils.misc import Timer, RewardNormalizer
-from utils.evaluations import eval_room_policy, eval_ball_policy
+from utils.training_time_evaluations import eval_room_policy, eval_ball_policy
 from envs.Room.RoomArrangement import RLEnvDynamic
+from networks.actor_critics import BallActor, RoomActor
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -115,6 +117,24 @@ def get_functions(configs, env, reward_func):
         raise ValueError(f"Mode {configs.env_type} not recognized.")
     return eval_fn
 
+def get_targf_sac_policy(configs, targf, max_action):
+    # init actor_net
+    ACTOR_DICT = {'Ball': BallActor, 'Room': RoomActor}
+    actor_class = ACTOR_DICT[configs.env_type]
+    actor_net = actor_class(
+        configs,
+        targf=targf,
+        max_action=max_action,
+        log_std_bounds=(-5, 2),
+    ).to(device)
+    # init policy_net
+    policy = TarGFSACPlanner(
+        configs,
+        actor_net,
+        targf,
+        max_action,
+    )
+    return policy
 
 def rl_trainer(configs, log_dir, writer):
 
@@ -148,15 +168,17 @@ def rl_trainer(configs, log_dir, writer):
     ''' setup eval functions '''
     eval_func = get_functions(configs, env, reward_func)
 
-    ''' Init policy '''
+    ''' Init RL Trainer and targf(sac) policy '''
+    policy = get_targf_sac_policy(configs, targf, max_action)
     kwargs = {
         "max_action": max_action,
+        "actor": policy, 
         "writer": writer,
         "targf": targf,
         "timer": timer,
         "configs": configs,
     }
-    policy = MASAC(**kwargs)
+    sac_trainer = MASAC(**kwargs)
 
     ''' Start Training Episodes '''
     state, done = env.reset(), False
@@ -190,7 +212,6 @@ def rl_trainer(configs, log_dir, writer):
         reward, reward_similarity, reward_collision = reward_func.get_reward(info=infos, cur_state=state, new_state=next_state)
         timer.log('step_reward')
 
-
         done_bool = float(done) if episode_timesteps < env.max_episode_len else 0
 
         timer.set()
@@ -206,7 +227,7 @@ def rl_trainer(configs, log_dir, writer):
         # Train agent after collecting sufficient data
         if t >= configs.start_timesteps:
             timer.set()
-            policy.train(replay_buffer, configs.batch_size_rl)
+            sac_trainer.train(replay_buffer, configs.batch_size_rl)
             timer.log('train_step')
 
         if done:
@@ -223,16 +244,13 @@ def rl_trainer(configs, log_dir, writer):
             writer.add_scalar('Episode_rewards/Total Reward', episode_reward, episode_num + 1)
 
             # Evaluate episode, save model before eval
-            if (episode_num + 1) % configs.eval_freq_rl == 0:
+            if (episode_num) % configs.eval_freq_rl == 0:
                 # save models
                 print('------Now Save Models!------')
                 ckpt_path = os.path.join('./logs', log_dir, 'policy.pickle')
                 with open(ckpt_path, 'wb') as f:
-                    policy.writer = None
-                    policy.timer = None
                     pickle.dump(policy, f)
-                policy.writer = writer
-                policy.timer = timer
+                
                 # eval cur policy
                 print('------Now Start Eval!------')
                 eval_num = configs.eval_num     

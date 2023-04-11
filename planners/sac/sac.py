@@ -3,13 +3,11 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from collections import deque
-from torch_geometric.data import Batch
 
 
-from networks.actor_critics import BallActor, BallCritic, RoomActor, RoomCritic
+from networks.actor_critics import BallCritic, RoomCritic
 from utils.preprocesses import prepro_state, prepro_graph_batch
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-ACTOR_DICT = {'Ball': BallActor, 'Room': RoomActor}
 CRITIC_DICT = {'Ball': BallCritic, 'Room': RoomCritic}
 
 
@@ -17,6 +15,7 @@ class MASAC(object):
     def __init__(
             self,
             max_action,
+            actor,
             writer,
             targf,
             configs,
@@ -24,14 +23,8 @@ class MASAC(object):
             learnable_temperature=True,
             init_temperature=0.1,
     ):
-        Actor = ACTOR_DICT[configs.env_type]
         Critic = CRITIC_DICT[configs.env_type]
-        self.actor = Actor(
-            configs,
-            targf=targf,
-            max_action=max_action,
-            log_std_bounds=(-5, 2),
-        ).to(device)
+        self.actor = actor
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=3e-4, betas=(0.9, 0.999))
 
         self.critic = Critic(
@@ -64,25 +57,6 @@ class MASAC(object):
     def alpha(self):
         return self.log_alpha.exp()
 
-    def select_action(self, state, sample=False):
-        # return [action_dim, ]
-        if self.env_type == 'Room':
-            if not torch.is_tensor(state[0]):
-                state_inp = prepro_state(state, cuda=True)
-                obj_batch = Batch.from_data_list([state_inp[1]])
-                wall_batch = state_inp[0].view(-1, 1)
-                state_inp = (wall_batch, obj_batch)
-            else:
-                state_inp = state
-        elif self.env_type == 'Ball':
-            state_inp = torch.FloatTensor(state.reshape(1, -1)).to(device)
-        else:
-            raise ValueError(f"Mode {self.env_type} not recognized.")
-    
-        dist = self.actor(state_inp)
-        action = dist.sample() if sample else dist.mean
-        return action.clamp(-self.max_action, self.max_action).detach().cpu().numpy().flatten()
-
     def train(self, replay_buffer, batch_size=256):
         self.total_it += 1
 
@@ -91,9 +65,7 @@ class MASAC(object):
         self.timer.set()
         state, action, next_state, reward, not_done = replay_buffer.sample(batch_size)
         if self.env_type == 'Room':
-            not_done = not_done[state[-1].batch]
-        # graph_samples_batch = state[-1].batch if self.env_type == 'Room' else state.batch
-        # not_done = not_done[graph_samples_batch] # [bs, 1] -> [num_nodes, 1]
+            not_done = not_done[state[-1].batch] # expand tensor
         self.timer.log('train_sample_batch')
         
 

@@ -10,6 +10,23 @@ from torch import distributions as pyd
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # ----------------------
+# --- Shared -----------
+# ----------------------
+
+class GaussianFourierProjection(nn.Module):
+    """Gaussian random features for encoding time steps."""
+
+    def __init__(self, embed_dim, scale=30.):
+        super().__init__()
+        # Randomly sample weights during initialization. These weights are fixed
+        # during optimization and are not trainable.
+        self.W = nn.Parameter(torch.randn(embed_dim // 2) * scale, requires_grad=False)
+
+    def forward(self, x):
+        x_proj = x[:, None] * self.W[None, :] * 2 * np.pi
+        return torch.cat([torch.sin(x_proj), torch.cos(x_proj)], dim=-1)
+
+# ----------------------
 # ----- Room -----------
 # ----------------------
 
@@ -23,7 +40,6 @@ class RoomActor(nn.Module):
         self.log_std_bounds = log_std_bounds
         self.t0 = configs.residual_t0
         self.max_action = max_action
-        self.is_residual = configs.is_residual
 
         self.init_enc = nn.Sequential(
             nn.Linear(4 + 3, hidden_dim), # [state, geo, tar_scores]
@@ -77,7 +93,7 @@ class RoomActor(nn.Module):
         ''' get tar scores'''
         # tar_scores: -> [num_nodes, 4]
         tar_scores = self.targf.inference(
-            batches, t0=self.t0, is_numpy=False, is_norm=False, empty=not self.is_residual
+            batches, t0=self.t0, is_numpy=False, is_norm=False, empty=False,
         )
         ''' get cond feat'''
         # class_feat: -> [num_nodes, embed_dim]
@@ -112,12 +128,7 @@ class RoomActor(nn.Module):
 
         # mu: [num_nodes, 4]
         mu = self.max_action * torch.tanh(mu)
-        if self.is_residual:
-            mu += self.max_action * torch.tanh(tar_scores)
-
-        dist = SquashedNormal(mu, std)
-        # set_trace()
-        return dist
+        return mu, std
 
 
 class RoomCritic(nn.Module):
@@ -127,7 +138,6 @@ class RoomCritic(nn.Module):
         embed_dim = configs.embed_dim
         self.targf = targf
         self.t0 = configs.residual_t0
-        self.is_residual = configs.is_residual
         init_dim = 4+3+3 # [state, action, tar_scores]
         cond_dim = embed_dim * 3  # wall feat, geo feat, cate feat
 
@@ -225,7 +235,7 @@ class RoomCritic(nn.Module):
         ''' get tar scores'''
         # tar_scores: -> [num_nodes, 4]
         tar_scores = self.targf.inference(
-            states, t0=self.t0, is_numpy=False, is_norm=False, empty=not self.is_residual
+            states, t0=self.t0, is_numpy=False, is_norm=False, empty=False,
         )
         ''' get cond feat'''
         # class_feat: -> [num_nodes, embed_dim]
@@ -257,7 +267,7 @@ class RoomCritic(nn.Module):
         ''' get tar scores'''
         # tar_scores: -> [num_nodes, 4]
         tar_scores = self.targf.inference(
-            states, t0=self.t0, is_numpy=False, is_norm=False, empty=not self.is_residual
+            states, t0=self.t0, is_numpy=False, is_norm=False, empty=False,
         )
         ''' get cond feat'''
         # class_feat: -> [num_nodes, embed_dim]
@@ -299,7 +309,6 @@ class BallActor(nn.Module):
         self.num_objs = configs.num_objs
         self.max_action = max_action
         self.t0 = configs.residual_t0
-        self.is_residual = configs.is_residual
         self.targf = targf
         self.spatial_lin = nn.Sequential(
             nn.Linear(4, hidden_dim),
@@ -334,7 +343,7 @@ class BallActor(nn.Module):
         k = self.knn
         bs = state_inp.shape[0]
         # prepare target scores
-        tar_scores = self.targf.inference(state_inp, t0=self.t0, is_numpy=False, is_norm=False, empty=(not self.is_residual)) 
+        tar_scores = self.targf.inference(state_inp, t0=self.t0, is_numpy=False, is_norm=False, empty=False) 
 
         # pre-pro data for message passing
         positions = state_inp.view(bs, self.num_objs, 3)[:, :, :2].view(-1, 2)
@@ -361,10 +370,7 @@ class BallActor(nn.Module):
 
         # mix with tar vel func
         mu = self.max_action * torch.tanh(mu.contiguous().view(-1, 2*self.num_objs))
-        if self.is_residual:
-            mu += self.max_action * torch.tanh(tar_scores.view(bs, -1))
-        dist = SquashedNormal(mu, std) 
-        return dist
+        return mu, std
 
 
 class BallCritic(nn.Module):
@@ -379,7 +385,6 @@ class BallCritic(nn.Module):
         self.t0 = configs.residual_t0
 
         self.targf = targf
-        self.is_residual = configs.is_residual
 
         # Q1 architecture
         self.spatial_lin_1 = nn.Sequential(
@@ -441,7 +446,7 @@ class BallCritic(nn.Module):
         samples_batch = torch.tensor([i for i in range(bs) for _ in range(self.num_objs)], dtype=torch.int64).to(device)
         x, edge_index = positions, knn_graph(positions, k=k, batch=samples_batch)
 
-        tar_scores = self.targf.inference(state, t0=self.t0, is_numpy=False, is_norm=False, empty=(not self.is_residual))
+        tar_scores = self.targf.inference(state, t0=self.t0, is_numpy=False, is_norm=False, empty=False)
         spatial_inp = torch.cat([positions, action.view(-1, 2), torch.tanh(tar_scores)], -1)
 
         # get init feature
@@ -462,7 +467,7 @@ class BallCritic(nn.Module):
         samples_batch = torch.tensor([i for i in range(bs) for _ in range(self.num_objs)], dtype=torch.int64).to(device)
         x, edge_index = positions, knn_graph(positions, k=k, batch=samples_batch)
 
-        tar_scores = self.targf.inference(state, t0=self.t0, is_numpy=False, is_norm=False, empty=(not self.is_residual)) 
+        tar_scores = self.targf.inference(state, t0=self.t0, is_numpy=False, is_norm=False, empty=False) 
         spatial_inp = torch.cat([positions, action.view(-1, 2), torch.tanh(tar_scores)], -1).view(-1, 2+2+2) 
 
         # get init feature
@@ -475,67 +480,4 @@ class BallCritic(nn.Module):
         out = self.tail_2(x)
         return out.view(bs, -1)
 
-# ----------------------
-# --- Shared -----------
-# ----------------------
-
-class GaussianFourierProjection(nn.Module):
-    """Gaussian random features for encoding time steps."""
-
-    def __init__(self, embed_dim, scale=30.):
-        super().__init__()
-        # Randomly sample weights during initialization. These weights are fixed
-        # during optimization and are not trainable.
-        self.W = nn.Parameter(torch.randn(embed_dim // 2) * scale, requires_grad=False)
-
-    def forward(self, x):
-        x_proj = x[:, None] * self.W[None, :] * 2 * np.pi
-        return torch.cat([torch.sin(x_proj), torch.cos(x_proj)], dim=-1)
-
-
-class TanhTransform(pyd.transforms.Transform):
-    domain = pyd.constraints.real
-    codomain = pyd.constraints.interval(-1.0, 1.0)
-    bijective = True
-    sign = +1
-
-    def __init__(self, cache_size=1):
-        super().__init__(cache_size=cache_size)
-
-    @staticmethod
-    def atanh(x):
-        return 0.5 * (x.log1p() - (-x).log1p())
-
-    def __eq__(self, other):
-        return isinstance(other, TanhTransform)
-
-    def _call(self, x):
-        return x.tanh()
-
-    def _inverse(self, y):
-        # We do not clamp to the boundary here as it may degrade the performance of certain algorithms.
-        # one should use `cache_size=1` instead
-        return self.atanh(y)
-
-    def log_abs_det_jacobian(self, x, y):
-        # We use a formula that is more numerically stable, see details in the following link
-        # https://github.com/tensorflow/probability/commit/ef6bb176e0ebd1cf6e25c6b5cecdd2428c22963f#diff-e120f70e92e6741bca649f04fcd907b7
-        return 2. * (math.log(2.) - x - F.softplus(-2. * x))
-
-
-class SquashedNormal(pyd.transformed_distribution.TransformedDistribution):
-    def __init__(self, loc, scale):
-        self.loc = loc
-        self.scale = scale
-
-        self.base_dist = pyd.Normal(loc, scale)
-        transforms = [TanhTransform()]
-        super().__init__(self.base_dist, transforms)
-
-    @property
-    def mean(self):
-        mu = self.loc
-        for tr in self.transforms:
-            mu = tr(mu)
-        return mu
 

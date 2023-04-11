@@ -39,7 +39,7 @@ def get_config():
     config.discount = 0.95
     config.tau = 0.005
     config.policy_freq = 1
-    config.start_timesteps = 1e2
+    config.start_timesteps = 25e2
     config.residual_t0 = 0.01
     config.buffer_size = 1e6
     config.is_residual = True 
@@ -51,7 +51,7 @@ def get_config():
     config.reward_t0 = 0.01
     config.normalize_reward = True
     # eval
-    config.eval_freq_rl = 1
+    config.eval_freq_rl = 100
     config.eval_num = 4
 
     return config
