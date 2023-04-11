@@ -4,8 +4,6 @@ import pickle
 from tqdm import trange
 import functools
 from ipdb import set_trace
-import gym
-import ebor
 
 import torch
 import torch.optim as optim
@@ -14,12 +12,14 @@ from torch_geometric.loader import DataLoader
 from torch_geometric.data import Data
 
 
-from utils.datasets import split_dataset, GraphDataset, collect_ball_dataset
-from utils.visualisations import visualize_room_states, visualize_ball_states
+from envs.envs import get_env
 from score_matching.sde import marginal_prob_std, diffusion_coeff
 from score_matching.sde import loss_fn_cond, loss_fn_uncond
 from score_matching.sde import cond_ode_vel_sampler, ode_sampler
 from networks.score_nets import CondScoreModelGNN, ScoreModelGNN
+from utils.datasets import split_dataset, GraphDataset, collect_ball_dataset
+from utils.visualisations import visualize_room_states, visualize_ball_states
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -104,22 +104,10 @@ def get_functions(configs, env):
         raise ValueError(f"Mode {configs.env_type} not recognized.")
     return loss_fn, sampler_fn, vis_fn
 
-def get_env(configs):
-    if configs.env_type == 'Room': 
-        env = None
-    elif configs.env_type == 'Ball':
-        env_name = '{}-{}Ball{}Class-v0'.format(configs.pattern, configs.num_objs, configs.num_classes)
-        env = gym.make(env_name)
-        env.seed(configs.seed)
-        env.reset()
-    else:
-        raise ValueError(f"Mode {configs.env_type} not recognized.")
-    return env
-
 
 def gf_trainer(configs, log_dir, writer):
     # get an env for visualisation, it can be None (if not used latter)
-    env = get_env(configs)
+    env, _ = get_env(configs)
 
     # get dataloaders
     dataloader_train, dataloader_vis = get_dataloaders(configs, env)

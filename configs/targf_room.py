@@ -54,4 +54,13 @@ def get_config():
     config.eval_freq_rl = 100
     config.eval_num = 4
 
+    ''' Eval Policy '''
+    config.policy_type = 'targf_sac' # for room: ['targf_sac']
+    config.recover = True
+    config.test_num = 2 # test set contains 83 different room-conditions
+    config.policy_exp = 'Room_SAC_rebuild'
+    config.calc_metrics = True
+    config.save_videos = True
+    config.test_seeds = [123, 234]
+
     return config

@@ -28,7 +28,7 @@ from numpy import array, sqrt, copysign, dot
 from numpy.linalg import det
 import numpy as np
 
-from Algorithms.ORCA.halfplaneintersect import halfplane_optimize, Line, perp
+from orca.halfplaneintersect import halfplane_optimize, Line, perp
 from ipdb import set_trace
 
 # Method:

@@ -5,6 +5,8 @@ import numpy as np
 from tqdm import trange
 import functools
 from ipdb import set_trace
+import cv2
+import tqdm
 
 import torch
 import torch.optim as optim
@@ -67,4 +69,30 @@ def visualize_ball_states(vis_states, ref_batch, writer, nrow, epoch, suffix, en
     ts_imgs = torch.tensor(batch_imgs).permute(0, 3, 1, 2)
     grid = make_grid(ts_imgs.float(), padding=2, nrow=nrow, normalize=True)
     writer.add_image(f'Images/{suffix}', grid, epoch)
+
+
+def images_to_gif(path, images, fps):
+    images[0].save(path, save_all=True, append_images=images[1:], fps=fps, loop=0)
+
+def images_to_video(path, images, fps, size):
+    out = cv2.VideoWriter(filename=path, fourcc=cv2.VideoWriter_fourcc(*'mp4v'), fps=fps, frameSize=size, isColor=True)
+    for item in images:
+        out.write(item)
+    out.release()
+
+
+def save_video(env, states, save_path, fps = 50, render_size = 256, suffix='avi'):
+    # states: [state1, state2, ....]
+    imgs = []
+    for _, state in tqdm(enumerate(states), desc='Saving video'):
+        state = env.unflatten_states([state])[0]
+        env.set_state(state)
+        img = env.render(img_size=render_size)
+        imgs.append(img[:, :, ::-1])
+    if suffix == 'gif':
+        from PIL import Image
+        images_to_gif(save_path+f'.{suffix}', [Image.fromarray(img[:, :, ::-1], mode='RGB') for img in imgs], fps=len(imgs)//5)
+    else:
+        batch_imgs = np.stack(imgs, axis=0)
+        images_to_video(save_path+f'.{suffix}', batch_imgs, fps, (render_size, render_size))
 

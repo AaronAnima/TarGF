@@ -64,8 +64,15 @@ def get_default_config():
     config.eval_num = config.eval_col**2
 
     ''' ORCA '''
-
+    config.is_decay_t0_orca = False
+    config.orca_t0 = 0.01
+    config.knn_orca = 2
 
     ''' Eval Policy '''
+    config.recover = False
+    config.test_num = 100
+    config.test_mode = 'full_metric'
+    config.policy_type = 'targf_orca' # ['targf_orca', 'targf_sac']
+
 
     return config

@@ -19,34 +19,27 @@ def normalise_vels(vels, max_vel):
 # ORCA Agent
 class TarGFORCAPlanner:
     def __init__(self, 
-        target_score, 
-        num_objs, 
-        env_, 
+        targf, 
+        configs,
         radius=0.025,
         max_vel=0.3, 
         dt=0.02, 
         tau=0.1, 
-        t0=0.01, # 0.1 in paper
-        knn=2, 
         horizon=100, 
-        is_decay=False, # True in paper
     ):
-        self.target_score = target_score
-        self.num_objs = num_objs
+        self.targf = targf
+        self.num_objs = configs.num_objs
         self.max_vel = max_vel
-        self.is_decay = is_decay
+        self.radius = radius
+        self.is_decay = configs.is_decay_t0_orca
         self.agents = []
-        self.t0 = t0
-        self.knn = knn
+        self.t0 = configs.orca_t0
+        self.knn = configs.knn_orca
         self.dt = dt
         self.tau = tau
-        self.env = env_
-        self.last_idx = None
-        self.last_duration = 0
-        self.one_by_one_duration = 20
 
-        for _ in range(num_objs):
-            self.agents.append(Agent(np.zeros(2), (0., 0.), radius, max_vel, np.zeros(2)))
+        for _ in range(self.num_objs):
+            self.agents.append(Agent(np.zeros(2), (0., 0.), self.radius, max_vel, np.zeros(2)))
         self.goal_state = None
 
         self.horizon = horizon
@@ -68,7 +61,7 @@ class TarGFORCAPlanner:
             t0 = self.t0*(self.horizon - self.cur_time_step + 1e-3) / self.horizon
         else:
             t0 = self.t0
-        tar_vels = self.target_score.get_score(inp_state, t0, is_numpy=True, is_norm=True, empty=False)
+        tar_vels = self.targf.inference(inp_state, t0, is_numpy=True, is_norm=True, empty=False)
         tar_vels = tar_vels.reshape((-1, 2))
         return tar_vels
 
@@ -86,7 +79,7 @@ class TarGFORCAPlanner:
         positions = inp_state.reshape((-1, 3))[:, :2]
         self.assign_pos(positions)
         new_vels = [None] * len(self.agents)
-        
+
         # ORCA: compute the optimal vel to avoid collision
         for i, agent in enumerate(self.agents):
             candidates = self.agents[:i] + self.agents[i + 1:]

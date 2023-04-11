@@ -4,18 +4,16 @@ import random
 import os
 from tqdm import trange
 import pickle
-import gym
-import ebor
 from ipdb import set_trace
 import functools
 from collections import OrderedDict
 
 from planners.sac.sac import MASAC, ReplayBuffer
 from planners.sac.targf_sac import TarGFSACPlanner
-from score_matching.targf import load_targf
+from planners.targf.targf import load_targf
 from utils.misc import Timer, RewardNormalizer
-from utils.training_time_evaluations import eval_room_policy, eval_ball_policy
-from envs.Room.RoomArrangement import RLEnvDynamic
+from utils.evaluations import training_time_eval_room, training_time_eval_ball
+from envs.envs import get_env
 from networks.actor_critics import BallActor, RoomActor
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -79,40 +77,12 @@ class RewardSampler:
         return similarity_reward
 
 
-def get_env(configs):
-    if configs.env_type == 'Room': 
-        tar_data = 'UnshuffledRoomsMeta'
-        exp_kwconfigs = {
-            'max_vel': configs.max_vel,
-            'pos_rate': 1,
-            'ori_rate': 1,
-            'max_episode_len': configs.horizon,
-        }
-        env = RLEnvDynamic(
-            tar_data,
-            exp_kwconfigs,
-            meta_name='ShuffledRoomsMeta',
-            is_gui=False,
-            fix_num=None, 
-            split='train', # determine initialising on which split of rooms
-        )
-        max_action = configs.max_vel
-    elif configs.env_type == 'Ball':
-        env_name = '{}-{}Ball{}Class-v0'.format(configs.pattern, configs.num_objs, configs.num_classes)
-        env = gym.make(env_name)
-        env.seed(configs.seed)
-        env.reset()
-        max_action = env.action_space['obj1']['linear_vel'].high[0]
-    else:
-        raise ValueError(f"Mode {configs.env_type} not recognized.")
-    return env, max_action
-
 
 def get_functions(configs, env, reward_func):
     if configs.env_type == 'Room': 
-        eval_fn = functools.partial(eval_room_policy, reward_func=reward_func)
+        eval_fn = functools.partial(training_time_eval_room, reward_func=reward_func)
     elif configs.env_type == 'Ball':
-        eval_fn = functools.partial(eval_ball_policy, nrow=configs.eval_col, pdf_func=env.pseudo_likelihoods)
+        eval_fn = functools.partial(training_time_eval_ball, nrow=configs.eval_col, pdf_func=env.pseudo_likelihoods)
     else:
         raise ValueError(f"Mode {configs.env_type} not recognized.")
     return eval_fn

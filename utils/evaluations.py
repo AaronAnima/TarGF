@@ -3,6 +3,7 @@ import torch
 from torchvision.utils import make_grid
 from tqdm import trange
 from collections import OrderedDict
+from sklearn.neighbors import NearestNeighbors
 
 from envs.Room.RoomArrangement import SceneSampler
 
@@ -10,7 +11,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 # eval & visualisation func for room rearrangement
-def eval_room_policy(eval_env, eval_policy, writer, eval_episodes, eval_idx, reward_func=None, visualise=True):
+def training_time_eval_room(eval_env, eval_policy, writer, eval_episodes, eval_idx, reward_func=None, visualise=True):
     episode_reward = 0
     episode_similarity_reward = 0
     episode_collision_reward = 0
@@ -75,7 +76,7 @@ def eval_room_policy(eval_env, eval_policy, writer, eval_episodes, eval_idx, rew
         writer.add_image(f'Images/igibson_gt_terminal_init', grid, eval_idx)
 
 # eval & visualisation func for ball rearrangement
-def eval_ball_policy(eval_env, eval_policy, writer, eval_episodes, eval_idx, pdf_func=None, nrow=4):
+def training_time_eval_ball(eval_env, eval_policy, writer, eval_episodes, eval_idx, pdf_func=None, nrow=4):
     horizon = eval_env.max_episode_len
     episode_delta_likelihoods = []
     episode_avg_collisions = []
@@ -132,3 +133,66 @@ def eval_ball_policy(eval_env, eval_policy, writer, eval_episodes, eval_idx, pdf
     ts_imgs = torch.tensor(batch_imgs).permute(0, 3, 1, 2)
     grid = make_grid(ts_imgs.float(), padding=2, nrow=nrow, normalize=True)
     writer.add_image(f'Images/eval_terminal_states', grid, eval_idx)
+
+
+
+# ball rearrangement, coverage score
+def chamfer_dist(x, y, metric='l1'):
+    x = x.reshape(-1, 2)
+    y = y.reshape(-1, 2)
+    # x: [nx, dim], y: [ny, dim]
+    x_nn = NearestNeighbors(n_neighbors=1, leaf_size=1, algorithm='kd_tree', metric=metric).fit(x)
+    min_y_to_x = x_nn.kneighbors(y)[0]
+    y_nn = NearestNeighbors(n_neighbors=1, leaf_size=1, algorithm='kd_tree', metric=metric).fit(y)
+    min_x_to_y = y_nn.kneighbors(x)[0]
+    dist = np.mean(min_y_to_x) + np.mean(min_x_to_y)
+    return dist
+
+def my_dist_ball(state1, state2, num_objs, is_category=True):
+    # remove labels
+    state1 = state1.reshape((num_objs, -1))[:, :2].reshape(-1)
+    state2 = state2.reshape((num_objs, -1))[:, :2].reshape(-1)
+
+    # !! overfit to the paper's setting, where there are 3 classes
+    num_per_class = num_objs // 3
+
+    dist = 0
+    if is_category:
+        dist += chamfer_dist(state1[0:num_per_class*2].reshape(-1, 2), state2[0:num_per_class*2].reshape(-1, 2))
+        dist += chamfer_dist(state1[num_per_class*2:num_per_class*4].reshape(-1, 2), state2[num_per_class*2:num_per_class*4].reshape(-1, 2))
+        dist += chamfer_dist(state1[num_per_class*4:num_per_class*6].reshape(-1, 2), state2[num_per_class*4:num_per_class*6].reshape(-1, 2))
+    else:
+        dist += chamfer_dist(state1.reshape(-1, 2), state2.reshape(-1, 2))
+    return dist
+
+def coverage_score_ball(gt_states, states, num_objs, who_cover='gen', is_category=True):
+    min_dists = []
+    # who_cover == 'gt': each gen find nearest gt， who_cover == ‘gen’: vice versa
+    cover_states = gt_states if who_cover == 'gt' else states
+    covered_states = states if who_cover == 'gt' else gt_states
+    for covered_state in covered_states:
+        min_dist = np.min(np.array([my_dist_ball(covered_state, cover_state, num_objs, is_category=is_category) for cover_state in cover_states]))
+        min_dists.append(min_dist)
+    return np.mean(np.array(min_dists))
+
+# room rearrangement, coverage score
+def my_dist_room(state1, state2):
+    # we assume:
+    # state1: [num_obj, 7]
+    # state2: [num_obj, 7]
+    return np.sum((state1[:, 0:2] - state2[:, 0:2])**2)
+
+def coverage_score_room(room_name_to_gt_states, room_name_to_states):
+    res = []
+    room_names = list(room_name_to_gt_states.keys())
+    for room_name in room_names:
+        gt_states = room_name_to_gt_states[room_name]
+        states = room_name_to_states[room_name]
+        min_dists = []
+        for gt_state in gt_states:
+            min_dist = np.min(np.array([my_dist_room(gt_state, state) for state in states]))
+            min_dists.append(min_dist)
+        res.append(np.min(np.array(min_dists))) 
+    res = np.array(res)
+    return np.mean(res)
+
