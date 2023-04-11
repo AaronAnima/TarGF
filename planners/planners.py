@@ -2,7 +2,7 @@ import torch
 import os
 import pickle
 
-from planners.targf.targf import load_targf
+from planners.gf_wrapper.targf import load_targf
 from planners.sac.targf_sac import TarGFSACPlanner # for pickle.load()
 from planners.orca.targf_orca import TarGFORCAPlanner
 

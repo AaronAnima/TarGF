@@ -10,7 +10,7 @@ from collections import OrderedDict
 
 from planners.sac.sac import MASAC, ReplayBuffer
 from planners.sac.targf_sac import TarGFSACPlanner
-from planners.targf.targf import load_targf
+from planners.gf_wrapper.targf import load_targf
 from utils.misc import Timer, RewardNormalizer
 from utils.evaluations import training_time_eval_room, training_time_eval_ball
 from envs.envs import get_env
@@ -67,7 +67,7 @@ class RewardSampler:
 
     def get_similarity_reward(self, info, cur_state, new_state):
         if self.reward_mode == 'densityIncre':
-            cur_score = self.targf.inference(cur_state, t0=self.t0, is_norm=False, for_reward=True) # cur_score: [num_nodes, 2]
+            cur_score = self.targf.inference(cur_state, t0=self.t0, grad_2_act=False) # cur_score: [num_nodes, 2]
             state_change = self.get_state_change(cur_state, new_state)
             similarity_reward = np.sum(state_change * cur_score)
             similarity_reward *= (info['cur_steps'] % self.reward_freq == 0)

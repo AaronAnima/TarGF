@@ -14,8 +14,8 @@ from torch_geometric.data import Data
 
 from envs.envs import get_env
 from score_matching.sde import marginal_prob_std, diffusion_coeff
-from score_matching.sde import loss_fn_cond, loss_fn_uncond
-from score_matching.sde import cond_ode_vel_sampler, ode_sampler
+from score_matching.loss import loss_fn_cond, loss_fn_uncond
+from score_matching.sampler import cond_ode_vel_sampler, ode_sampler
 from networks.score_nets import CondScoreModelGNN, ScoreModelGNN
 from utils.datasets import split_dataset, GraphDataset, collect_ball_dataset
 from utils.visualisations import visualize_room_states, visualize_ball_states

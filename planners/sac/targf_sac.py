@@ -21,17 +21,16 @@ class TarGFSACPlanner(nn.Module):
 
     def forward(self, state_inp):
         ''' get gradient_based_action ''' 
-        tar_gradients = self.targf.inference(
-            state_inp, t0=self.residual_t0, is_numpy=False, is_norm=False, empty=False
+        grad_based_action = self.targf.inference(
+            state_inp, t0=self.residual_t0, is_numpy=False, grad_2_act=True, empty=False
         ) 
         if self.env_type == 'Ball':
             bs = state_inp.shape[0]
-            tar_gradients = tar_gradients.view(bs, -1)
-        gf_mu = self.max_action * torch.tanh(tar_gradients)
+            grad_based_action = grad_based_action.view(bs, -1)
         ''' get residual action '''
         residual_mu, residual_std = self.residual_actor(state_inp)
 
-        final_mu = gf_mu + residual_mu
+        final_mu = grad_based_action + residual_mu
         dist = SquashedNormal(final_mu, residual_std) 
         return dist
     
