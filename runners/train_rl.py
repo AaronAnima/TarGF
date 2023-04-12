@@ -214,7 +214,7 @@ def rl_trainer(configs, log_dir, writer):
             writer.add_scalar('Episode_rewards/Total Reward', episode_reward, episode_num + 1)
 
             # Evaluate episode, save model before eval
-            if (episode_num) % configs.eval_freq_rl == 0:
+            if (episode_num + 1) % configs.eval_freq_rl == 0:
                 # save models
                 print('------Now Save Models!------')
                 ckpt_path = os.path.join('./logs', log_dir, 'policy.pickle')

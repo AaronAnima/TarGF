@@ -9,7 +9,29 @@ from torch_geometric.data import Data
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# room sampler 
+
+''' room sampler '''
+# project the ori-gradient from Euler space to Riemann's
+def grad_projection(scores, states_x):
+    ''' project the original 4-D gradient [pos_grad(2), ori_grad(2)] to 3-D gradient [pos_grad(2), ori_grad(1)] '''
+    pos_grad = scores[:, 0:2]
+    ori_2d_grad = scores[:, 2:4]
+    cur_n = states_x[:, 2:4]  # [sin(x), cos(x)]
+    # set_trace()
+    assert torch.abs(torch.sum((torch.sum(cur_n ** 2, dim=-1) - 1))) < 1e7
+    cur_n = torch.cat([-cur_n[:, 0:1], cur_n[:, 1:2]], dim=-1)  # [-sin(x), cos(x)]
+    ori_grad = torch.sum(torch.cat([ori_2d_grad[:, 1:2], ori_2d_grad[:, 0:1]], dim=-1) * cur_n, dim=-1, keepdim=True)
+    return torch.cat([pos_grad, ori_grad], dim=-1)
+
+def update_euler_ori(origin_ori, delta_ori):
+    cd = torch.cos(delta_ori)
+    sd = torch.sin(delta_ori)
+    cx = origin_ori[:, 1:2]
+    sx = origin_ori[:, 0:1]
+    new_ori = torch.cat([sx * cd + cx * sd, cx * cd - sx * sd], dim=-1)
+    new_ori /= torch.sqrt(torch.sum(new_ori ** 2, dim=-1, keepdim=True))
+    return new_ori
+
 
 def cond_ode_vel_sampler(
         score_fn,
@@ -57,37 +79,35 @@ def cond_ode_vel_sampler(
 
     # linear decay freq
     for _, t in enumerate(t_eval):
-        velocity = ode_func(t, x)  # [bs, 4]
-        pos_vel = velocity[:, 0:2]
-        max_pos_vel_norm = torch.max(torch.abs(pos_vel))
-        pos_vel /= max_pos_vel_norm
-        pos_vel *= max_pos_vel  # RL action, pos_vel
+        # calc original ode_update_func
+        scores = ode_func(t, x)  # [bs, 4]
+
+        # projection
+        scores_proj = grad_projection(scores, x)
+
+        # scores -- normalise --> actions
+        pos_vel = scores_proj[:, 0:2]
+        pos_vel *= pos_vel * max_pos_vel / torch.max(torch.abs(pos_vel)) # RL action, pos_vel
+        ori_vel_riemann = scores_proj[:, 2:3]
+        ori_vel_riemann = ori_vel_riemann * max_ori_vel / torch.max(torch.abs(ori_vel_riemann))  # RL action, ori vel
+
+        # calc delta pos and ori
         delta_pos = pos_vel * scale
+        delta_ori = ori_vel_riemann * scale
+
+        # update pos and ori(euler)
         new_pos = x[:, 0:2] + delta_pos
+        new_ori = update_euler_ori(x[:, 2:4], delta_ori)
 
-        ori_vel = velocity[:, 2:4]
-        cur_n = x[:, 2:4]  # [sin(x), cos(x)]
-        assert torch.abs(torch.sum((torch.sum(cur_n ** 2, dim=-1) - 1))) < 1e7
-        cur_n = torch.cat([-cur_n[:, 0:1], cur_n[:, 1:2]], dim=-1)  # [-sin(x), cos(x)]
-        grad_theta = torch.sum(torch.cat([ori_vel[:, 1:2], ori_vel[:, 0:1]], dim=-1) * cur_n, dim=-1, keepdim=True)
-        ori_vel = grad_theta * max_ori_vel / torch.max(torch.abs(grad_theta))  # RL action, ori vel
-        delta_ori = ori_vel * scale
-        cd = torch.cos(delta_ori)
-        sd = torch.sin(delta_ori)
-        cx = x[:, 3:4]
-        sx = x[:, 2:3]
-        new_ori = torch.cat([sx * cd + cx * sd, cx * cd - sx * sd], dim=-1)
-        new_ori /= torch.sqrt(torch.sum(new_ori ** 2, dim=-1, keepdim=True))
-
-        
+        # update diffusion variable
         x = torch.cat([new_pos, new_ori], dim=-1)
-
         xs.append(x.cpu().unsqueeze(0).clone())
+
     return torch.cat(xs, dim=0), xs[-1][0]
 
 
     
-# ball sampler
+''' ball sampler '''
 def ode_sampler(
     score_model,
     marginal_prob_std,

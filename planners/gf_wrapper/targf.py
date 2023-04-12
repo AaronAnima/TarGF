@@ -5,6 +5,7 @@ import functools
 import pickle
 
 from score_matching.sde import marginal_prob_std, diffusion_coeff
+from score_matching.sampler import grad_projection
 from utils.preprocesses import prepro_graph_batch
 from networks import * # for pickle load
 
@@ -19,18 +20,6 @@ def load_targf(configs, max_action):
         score = pickle.load(f)
 
     return TarGF(score.to(device), configs, max_action)
-
-# project the gradient from Euler space to Riemann's
-def riemann_projection(scores, states_x):
-    ''' project the original 4-D gradient [pos_grad(2), ori_grad(2)] to 3-D gradient [pos_grad(2), ori_grad(1)] '''
-    pos_grad = scores[:, 0:2]
-    ori_2d_grad = scores[:, 2:4]
-    cur_n = states_x[:, 2:4]  # [sin(x), cos(x)]
-    # set_trace()
-    assert torch.abs(torch.sum((torch.sum(cur_n ** 2, dim=-1) - 1))) < 1e7
-    cur_n = torch.cat([-cur_n[:, 0:1], cur_n[:, 1:2]], dim=-1)  # [-sin(x), cos(x)]
-    ori_grad = torch.sum(torch.cat([ori_2d_grad[:, 1:2], ori_2d_grad[:, 0:1]], dim=-1) * cur_n, dim=-1, keepdim=True)
-    return torch.cat([pos_grad, ori_grad], dim=-1)
 
 
 class TarGF:
@@ -51,7 +40,7 @@ class TarGF:
             out_score = self.score_net(state_inp, t) 
             out_score = out_score.detach()
             if grad_2_act:
-                out_score = riemann_projection(out_score, state_inp[-1].x)
+                out_score = grad_projection(out_score, state_inp[-1].x)
         elif self.configs.env_type == 'Ball':
             # construct graph-input for score network
             if not torch.is_tensor(state_inp):
