@@ -17,20 +17,22 @@ def grad_projection(scores, states_x):
     pos_grad = scores[:, 0:2]
     ori_2d_grad = scores[:, 2:4]
     cur_n = states_x[:, 2:4]  # [sin(x), cos(x)]
-    # set_trace()
-    assert torch.abs(torch.sum((torch.sum(cur_n ** 2, dim=-1) - 1))) < 1e7
+    assert torch.linalg.norm(torch.sum(cur_n ** 2, dim=-1) - 1)**2 < 1e-7 # ensure cur_n are unit vectors
     cur_n = torch.cat([-cur_n[:, 0:1], cur_n[:, 1:2]], dim=-1)  # [-sin(x), cos(x)]
     ori_grad = torch.sum(torch.cat([ori_2d_grad[:, 1:2], ori_2d_grad[:, 0:1]], dim=-1) * cur_n, dim=-1, keepdim=True)
     return torch.cat([pos_grad, ori_grad], dim=-1)
 
-def update_euler_ori(origin_ori, delta_ori):
-    cd = torch.cos(delta_ori)
-    sd = torch.sin(delta_ori)
-    cx = origin_ori[:, 1:2]
-    sx = origin_ori[:, 0:1]
-    new_ori = torch.cat([sx * cd + cx * sd, cx * cd - sx * sd], dim=-1)
-    new_ori /= torch.sqrt(torch.sum(new_ori ** 2, dim=-1, keepdim=True))
-    return new_ori
+
+def update_ori_euler(origin_ori_euler, delta_ori_riemann):
+    # origin_ori_euler: [num_nodes, 2]
+    # delta_ori_riemann: [mum_nodes, 1]
+    cd = torch.cos(delta_ori_riemann)
+    sd = torch.sin(delta_ori_riemann)
+    cx = origin_ori_euler[:, 1:2]
+    sx = origin_ori_euler[:, 0:1]
+    updated_ori_euler = torch.cat([sx * cd + cx * sd, cx * cd - sx * sd], dim=-1)
+    updated_ori_euler /= torch.sqrt(torch.sum(updated_ori_euler ** 2, dim=-1, keepdim=True))
+    return updated_ori_euler
 
 
 def cond_ode_vel_sampler(
@@ -87,9 +89,9 @@ def cond_ode_vel_sampler(
 
         # scores -- normalise --> actions
         pos_vel = scores_proj[:, 0:2]
-        pos_vel *= pos_vel * max_pos_vel / torch.max(torch.abs(pos_vel)) # RL action, pos_vel
+        pos_vel *= max_pos_vel / torch.max(torch.abs(pos_vel)) # RL action, pos_vel
         ori_vel_riemann = scores_proj[:, 2:3]
-        ori_vel_riemann = ori_vel_riemann * max_ori_vel / torch.max(torch.abs(ori_vel_riemann))  # RL action, ori vel
+        ori_vel_riemann *= max_ori_vel / torch.max(torch.abs(ori_vel_riemann))  # RL action, ori vel
 
         # calc delta pos and ori
         delta_pos = pos_vel * scale
@@ -97,7 +99,7 @@ def cond_ode_vel_sampler(
 
         # update pos and ori(euler)
         new_pos = x[:, 0:2] + delta_pos
-        new_ori = update_euler_ori(x[:, 2:4], delta_ori)
+        new_ori = update_ori_euler(x[:, 2:4], delta_ori)
 
         # update diffusion variable
         x = torch.cat([new_pos, new_ori], dim=-1)
@@ -105,8 +107,6 @@ def cond_ode_vel_sampler(
 
     return torch.cat(xs, dim=0), xs[-1][0]
 
-
-    
 ''' ball sampler '''
 def ode_sampler(
     score_model,

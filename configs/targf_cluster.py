@@ -22,6 +22,6 @@ def get_config():
     config.calc_metrics = True
     config.save_videos = True
     config.test_seeds = [5, 10, 15, 20, 25]
-    config.test_num = 4
+    config.test_num = 100
 
     return config
