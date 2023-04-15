@@ -17,11 +17,13 @@ def get_planners(configs, eval_env, max_action):
         horizon = eval_env.max_episode_len
         dt = (1 / eval_env.time_freq) * eval_env.sim_steps_each_time
         tau = 10 * dt
+        # tau = 20 * dt
         radius = eval_env.r
         bound = eval_env.bound
         max_vel = eval_env.max_action
 
         radius_orca = (1 + 0.1) * radius / (bound - radius)
+        # radius_orca = (1 + 0.05) * radius / (bound - radius)
         policy = TarGFORCAPlanner(
             targf,
             configs,
