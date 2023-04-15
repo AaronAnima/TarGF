@@ -665,17 +665,17 @@ class RLEnv:
         self.ori_rate = exp_kwargs['ori_rate']
         self.max_vel = exp_kwargs['max_vel']
         self.max_episode_len = exp_kwargs['max_episode_len']
-        self.obj_num = len(self.sim.objects_by_name) - 2
+        self.num_objs = len(self.sim.objects_by_name) - 2
         self.cur_step_num = 0
         self.cur_steps = 0
 
     def step(self, actions, fixed=[]):
         self.cur_steps += 1
-        # actions: [obj_num, 3] pos_vel(2)||ori_vel(1)
+        # actions: [num_objs, 3] pos_vel(2)||ori_vel(1)
         # pos_vel: [-max_vel*pos_rate, max_vel*pos_rate] || ori_vel: [-max_vel*ori_rate, max_vel*ori_rate]
         # numpy array
         idx = 0
-        actions = actions.reshape(self.obj_num, -1)
+        actions = actions.reshape(self.num_objs, -1)
         pos_vel = actions[:, :2]
         max_pos_vel_norm = np.max(np.linalg.norm(pos_vel, ord=np.inf, axis=-1))
         scale_factor = self.max_vel * self.pos_rate / max_pos_vel_norm
@@ -833,7 +833,7 @@ class RLEnvDynamic:
         self.idx = 0
     
     def nop_action(self):
-        action = np.zeros((self.obj_number*3))
+        action = np.zeros((self.num_objs*3))
         return action
 
     
@@ -843,8 +843,8 @@ class RLEnvDynamic:
             random.seed(seed)
 
     @property
-    def obj_number(self):
-        return self.sim.obj_num
+    def num_objs(self):
+        return self.sim.num_objs
     
     @property
     def max_episode_len(self):
@@ -901,154 +901,11 @@ class RLEnvDynamic:
         return RLEnv(sim, self.exp_kwargs, name=name)
 
     def sample_action(self):
-        action_ = np.random.uniform(-1, 1, size=(self.obj_number, 3))
+        action_ = np.random.uniform(-1, 1, size=(self.num_objs, 3))
         action_[:, 0:2] = action_[:, 0:2] * self.max_vel * self.pos_rate
         action_[:, 2:3] = action_[:, 2:3] * self.max_vel * self.ori_rate
         return action_.flatten()
 
-
-class RLEnvFull:
-    # wrap for baseline-rce, we padding the state space to [8, 6] + [1, 6](wall feat), and action space as well
-    def __init__(
-            self,
-            tar_data_name='UnshuffledRoomMeta',
-            exp_configs={'max_vel': 4, 'pos_rate': 1, 'ori_rate': 1, 'max_episode_len': 250},
-            meta_name='ShuffledRoomMeta',
-            is_gui=False,
-            room_type='bedroom',
-            fix_num=None,
-            test_seed=0,
-            test_ratio=0.1,
-            is_single_room=False,
-            split='train', 
-    ):
-        self.max_vel = exp_configs['max_vel']
-        self.pos_rate = exp_configs['max_vel']
-        self.ori_rate = exp_configs['ori_rate']
-        self.is_single_room = is_single_room
-        self.fix_num = fix_num
-        if fix_num is None:
-            self.action_space = spaces.Box(-self.max_vel, self.max_vel, shape=(8 * 3,), dtype=np.float32)
-            self.observation_space = spaces.Box(-1, 1, shape=((8 + 1 + 1) * 7,), dtype=np.float32)
-        else:
-            assert 3 <= self.fix_num <= 8
-            self.action_space = spaces.Box(-self.max_vel, self.max_vel, shape=(fix_num * 3,), dtype=np.float32)
-            self.observation_space = spaces.Box(-1, 1, shape=((fix_num + 1 + 1) * 7,), dtype=np.float32)
-        self.exp_kwargs = exp_configs
-        self.room_type = room_type
-        self.is_gui = is_gui
-        self.tar_dataset = GraphDataset(f'{tar_data_name}', is_numpy=True)
-
-        train_dataset, test_dataset, infos_dict = split_dataset(self.tar_dataset, seed=test_seed, test_ratio=test_ratio)
-
-        self.exp_data = []
-        for state in train_dataset:
-            prepro_data = self.prepro_state(state)
-            if self.fix_num is not None:
-                if prepro_data.shape[0] == 7 * (self.fix_num + 1):  
-                    self.exp_data.append(prepro_data)
-            else:
-                self.exp_data.append(prepro_data)
-        self.exp_data = np.stack(self.exp_data)
-
-        ''' init room names '''
-        with open(f'./expert_datasets/{meta_name}.pickle', 'rb') as f:
-            self.room_metas_dict = pickle.load(f)
-        self.room_names = []
-        dataset = train_dataset if split == 'train' else test_dataset
-        for state in dataset:
-            _, _, room_name = state
-            self.room_names.append(room_name)
-        self.room_names = list(set(self.room_names)) # remove the repeated room names here!
-        self.room_names.sort() # fix the order
-        # check all the room name is valid in room-metas
-        for room_name in self.room_names:
-            assert room_name in self.room_metas_dict.keys()
-
-        self.proxy_dict = {
-            'padding': 0.0,
-            'margin': 0.0,
-            'proxy_height': 0.5,
-        }
-        self.sim = None
-        self.episode_cnt = 0
-
-    def seed(self, seed):
-        torch.manual_seed(seed)
-        np.random.seed(seed)
-        random.seed(seed)
-
-    def prepro_state(self, state):
-        max_obj_num = 8 if self.fix_num is None else self.fix_num
-        wall_feat = state[0]
-        obj_feat = state[1]
-        n_obj, feat_dim = obj_feat.shape
-        state = obj_feat
-        if self.fix_num is None:
-            state = np.vstack([state, np.zeros((max_obj_num - n_obj, feat_dim))])
-        state = np.vstack([state, np.tile(n_obj, (1, feat_dim))])
-        state = np.vstack([state, np.tile(wall_feat, (1, feat_dim))])
-
-        return state.flatten()
-
-    def prepro_action(self, actions):
-        return actions[0:self.sim.obj_num * 3].reshape(self.sim.obj_num, 3)
-
-    def reset(self):
-        self.episode_cnt += 1
-        if self.sim is not None:
-            self.sim.close()
-        self.sim = self.sample()
-        state = self.sim.reset()  # [obj_num, 7] -> [8+1, 7]
-        print(f'No.{self.episode_cnt} Episode Success!')
-        return self.prepro_state(state)
-
-    def step(self, actions):
-        actions_ = self.prepro_action(actions)  # [8, 3] -> [obj_num, 3]
-        next_state, reward, is_done, infos = self.sim.step(actions_)
-        return self.prepro_state(next_state), reward, is_done, infos
-
-    def get_dataset(self, num_obs=256):
-        # for RCE
-        num_obs_full = self.exp_data.shape[0]
-        num_obs = num_obs_full
-        # # sample a batch of random actions
-        action_vec = [self.sample_action() for _ in range(num_obs)]
-        # sample a batch of example states
-        obs_vec = self.exp_data
-        dataset = {
-            'observations': np.array(obs_vec, dtype=np.float32),
-            'actions': np.array(action_vec, dtype=np.float32),
-            'rewards': np.zeros(num_obs, dtype=np.float32),
-        }
-        return dataset
-
-    def sample(self, room_name=None):
-        if room_name is None:
-            if self.is_single_room:
-                # for debug
-                name = '3a19c7bb-bc35-44e3-8d48-4fb00b9789ff'
-            else:
-                name = random.sample(self.room_names, 1)[0]
-        else:
-            name = room_name
-        room_meta = self.room_metas_dict[name]
-        if self.fix_num is not None:
-            flag = (len(room_meta['meta']) - 2 != self.fix_num)
-            while flag:
-                name = random.sample(self.room_names, 1)[0]
-                room_meta = self.room_metas_dict[name]
-                flag = (len(room_meta['meta']) - 2 != self.fix_num)
-        
-        sim = ProxySimulator(room_meta, 0, name, self.room_type, self.proxy_dict, is_gui=self.is_gui)
-        self.name = name
-        return RLEnv(sim, self.exp_kwargs, name=name)
-
-    def sample_action(self):
-        action_ = np.random.normal(size=(8 if self.fix_num is None else self.fix_num, 3)) * self.max_vel
-        action_[:, 0:2] = np.clip(action_[:, 0:2], -self.max_vel * self.pos_rate, self.max_vel * self.pos_rate)
-        action_[:, 2:3] = np.clip(action_[:, 2:3], -self.max_vel * self.ori_rate, self.max_vel * self.ori_rate)
-        return action_.flatten()
 
 
 class SceneSampler:

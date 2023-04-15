@@ -93,7 +93,7 @@ class RoomActor(nn.Module):
         ''' get tar scores'''
         # tar_scores: -> [num_nodes, 4]
         tar_scores = self.targf.inference(
-            batches, t0=self.t0, is_numpy=False, grad_2_act=True, empty=False,
+            batches, t0=self.t0, is_numpy=False, grad_2_act=True, norm_type='None', empty=False,
         )
         ''' get cond feat'''
         # class_feat: -> [num_nodes, embed_dim]
@@ -235,7 +235,7 @@ class RoomCritic(nn.Module):
         ''' get tar scores'''
         # tar_scores: -> [num_nodes, 4]
         tar_scores = self.targf.inference(
-            states, t0=self.t0, is_numpy=False, grad_2_act=True, empty=False,
+            states, t0=self.t0, is_numpy=False, grad_2_act=True, norm_type='None', empty=False,
         )
         ''' get cond feat'''
         # class_feat: -> [num_nodes, embed_dim]
@@ -267,7 +267,7 @@ class RoomCritic(nn.Module):
         ''' get tar scores'''
         # tar_scores: -> [num_nodes, 4]
         tar_scores = self.targf.inference(
-            states, t0=self.t0, is_numpy=False, grad_2_act=True, empty=False,
+            states, t0=self.t0, is_numpy=False, grad_2_act=True, norm_type='None', empty=False,
         )
         ''' get cond feat'''
         # class_feat: -> [num_nodes, embed_dim]
@@ -343,7 +343,7 @@ class BallActor(nn.Module):
         k = self.knn
         bs = state_inp.shape[0]
         # prepare target scores
-        tar_scores = self.targf.inference(state_inp, t0=self.t0, is_numpy=False, grad_2_act=True, empty=False) 
+        tar_scores = self.targf.inference(state_inp, t0=self.t0, is_numpy=False, grad_2_act=True, norm_type='None', empty=False) 
 
         # pre-pro data for message passing
         positions = state_inp.view(bs, self.num_objs, 3)[:, :, :2].view(-1, 2)
@@ -446,7 +446,7 @@ class BallCritic(nn.Module):
         samples_batch = torch.tensor([i for i in range(bs) for _ in range(self.num_objs)], dtype=torch.int64).to(device)
         x, edge_index = positions, knn_graph(positions, k=k, batch=samples_batch)
 
-        tar_scores = self.targf.inference(state, t0=self.t0, is_numpy=False, grad_2_act=True, empty=False)
+        tar_scores = self.targf.inference(state, t0=self.t0, is_numpy=False, grad_2_act=True, norm_type='None', empty=False)
         spatial_inp = torch.cat([positions, action.view(-1, 2), torch.tanh(tar_scores)], -1)
 
         # get init feature
@@ -467,7 +467,7 @@ class BallCritic(nn.Module):
         samples_batch = torch.tensor([i for i in range(bs) for _ in range(self.num_objs)], dtype=torch.int64).to(device)
         x, edge_index = positions, knn_graph(positions, k=k, batch=samples_batch)
 
-        tar_scores = self.targf.inference(state, t0=self.t0, is_numpy=False, grad_2_act=True, empty=False) 
+        tar_scores = self.targf.inference(state, t0=self.t0, is_numpy=False, grad_2_act=True, norm_type='None', empty=False) 
         spatial_inp = torch.cat([positions, action.view(-1, 2), torch.tanh(tar_scores)], -1).view(-1, 2+2+2) 
 
         # get init feature

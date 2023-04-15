@@ -4,6 +4,7 @@ logs
 __pycache__
 *.pkl
 expert_datasets
+ExpertDatasets
 .history
 data
 EbOR

@@ -22,11 +22,13 @@ class TarGFSACPlanner(nn.Module):
     def forward(self, state_inp):
         ''' get gradient_based_action ''' 
         grad_based_action = self.targf.inference(
-            state_inp, t0=self.residual_t0, is_numpy=False, grad_2_act=True, empty=False
+            state_inp, t0=self.residual_t0, is_numpy=False, grad_2_act=True, norm_type='tanh', empty=False
         ) 
         if self.env_type == 'Ball':
             bs = state_inp.shape[0]
             grad_based_action = grad_based_action.view(bs, -1)
+        
+
         ''' get residual action '''
         residual_mu, residual_std = self.residual_actor(state_inp)
 

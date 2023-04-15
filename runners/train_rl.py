@@ -67,7 +67,7 @@ class RewardSampler:
 
     def get_similarity_reward(self, info, cur_state, new_state):
         if self.reward_mode == 'densityIncre':
-            cur_score = self.targf.inference(cur_state, t0=self.t0, grad_2_act=False) # cur_score: [num_nodes, 2]
+            cur_score = self.targf.inference(cur_state, t0=self.t0, grad_2_act=False, norm_type='None') # cur_score: [num_nodes, 2]
             state_change = self.get_state_change(cur_state, new_state)
             similarity_reward = np.sum(state_change * cur_score)
             similarity_reward *= (info['cur_steps'] % self.reward_freq == 0)
@@ -126,8 +126,8 @@ def rl_trainer(configs, log_dir, writer):
     ''' Init Buffer '''
     replay_buffer = ReplayBuffer(configs, timer=timer)
 
-    reward_normalizer_sim = RewardNormalizer(configs.normalize_reward == 'True', writer, name='sim')
-    reward_normalizer_col = RewardNormalizer(configs.normalize_reward == 'True', writer, name='col')
+    reward_normalizer_sim = RewardNormalizer(configs.normalize_reward, writer, name='sim')
+    reward_normalizer_col = RewardNormalizer(configs.normalize_reward, writer, name='col')
     reward_func = RewardSampler(
         reward_normalizer_sim,
         reward_normalizer_col,
@@ -205,11 +205,11 @@ def rl_trainer(configs, log_dir, writer):
                 f"Total T: {t + 1} Episode Num: {episode_num + 1} Episode T: {episode_timesteps} "
                 f"Total: {episode_reward:.3f} "
                 f"Collision: {episode_collision_reward:.3f} "
-                f"Similarity: {episode_similarity_reward:.3f}")
+                f"Similarity: {episode_similarity_reward*env.num_objs:.3f}")
             writer.add_scalars('Episode_rewards/Compare',
                                {'total': episode_reward,
                                 'collision': episode_collision_reward,
-                                'similarity': episode_similarity_reward},
+                                'similarity': episode_similarity_reward*env.num_objs},
                                episode_num + 1)
             writer.add_scalar('Episode_rewards/Total Reward', episode_reward, episode_num + 1)
 

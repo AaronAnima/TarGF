@@ -16,16 +16,15 @@ def get_default_config():
     # train
     config.n_epoches = 100000
     config.n_samples = 10000
-    config.batch_size_gf = 4096
+    config.batch_size_gf = 2048
     config.lr = 2e-4
-    config.t0 = 1e-1
-    config.beta1 = 0.9
+    config.t0 = 1.0
+    config.beta1 = 0.5
     config.workers = 8
     config.hidden_dim = 128
     config.embed_dim = 64
     config.sigma = 25.
     config.full_train = False
-    config.base_noise_scale = 0.01
     # eval
     config.vis_freq_gf = 20
     config.video_freq_gf = 100

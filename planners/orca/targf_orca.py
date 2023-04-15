@@ -61,7 +61,7 @@ class TarGFORCAPlanner:
             t0 = self.t0*(self.horizon - self.cur_time_step + 1e-3) / self.horizon
         else:
             t0 = self.t0
-        tar_vels = self.targf.inference(inp_state, t0, is_numpy=True, grad_2_act=True, empty=False)
+        tar_vels = self.targf.inference(inp_state, t0, is_numpy=True, grad_2_act=True, norm_type='inf', empty=False)
         tar_vels = tar_vels.reshape((-1, 2))
         return tar_vels
 

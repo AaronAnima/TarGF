@@ -62,14 +62,17 @@ class TarGF:
             
         return out_score
 
-    def inference(self, state_inp, t0, is_numpy=True, grad_2_act=True, empty=False):
-        ''' set grad_2_act=True if you want a gradient-based action'''
+    def inference(self, state_inp, t0, is_numpy=True, grad_2_act=True, norm_type='None', empty=False):
+        ''' set grad_2_act=True if you want a gradient-based action, norm_type in ['None', 'inf', 'tanh'] '''
         if not empty:
             out_score = self.get_gradient(state_inp, t0, grad_2_act)
-            if grad_2_act:
+            if norm_type == 'inf':
                 out_score = out_score * torch.min(
                     torch.tensor([1, self.max_action / (torch.max(torch.abs(out_score)) + 1e-7)]).to(device))
+            elif norm_type == 'tanh':
+                out_score = out_score * torch.tanh(out_score)
             else:
+                assert norm_type == 'None'
                 out_score = out_score
         else:
             out_score = torch.zeros_like(state_inp).to(device).view(-1, 2)
