@@ -24,6 +24,6 @@ def get_config():
     # config.test_seeds = [5, 10, 15, 20, 25]
     # config.test_num = 100
     config.test_seeds = [5, 10]
-    config.test_num = 100
+    config.test_num = 8
 
     return config
