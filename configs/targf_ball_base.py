@@ -34,7 +34,7 @@ def get_default_config():
 
     ''' Train SAC '''
     # file 
-    config.score_exp = 'Room_Score'
+    config.score_exp = 'None'
     # env
     config.action_type = 'vel'
     # model

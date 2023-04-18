@@ -11,9 +11,9 @@ def get_config():
 
     ''' Train SAC '''
     # file 
-    config.score_exp = 'CircleCluster_Score_newpattern_largebs'
+    config.score_exp = 'CircleCluster_Score_newpattern_largebs_fixbug'
     # reward
-    config.lambda_col = 5.0
+    config.lambda_col = 3.0
     config.lambda_sim = 1.0
 
     ''' Eval Policy '''

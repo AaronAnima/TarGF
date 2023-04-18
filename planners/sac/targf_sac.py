@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import distributions as pyd
 from torch_geometric.data import Batch
+from ipdb import set_trace
 
 from utils.preprocesses import prepro_state
 
@@ -33,6 +34,7 @@ class TarGFSACPlanner(nn.Module):
         residual_mu, residual_std = self.residual_actor(state_inp)
 
         final_mu = grad_based_action + residual_mu
+
         dist = SquashedNormal(final_mu, residual_std) 
         return dist
     
