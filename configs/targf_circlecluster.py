@@ -5,15 +5,15 @@ def get_config():
     
     ''' Train GF '''
     # file
-    config.data_name = 'CircleCluster_Examples_new_pattern'
+    config.data_name = 'CircleCluster_Examples'
     # env
     config.pattern = 'CircleCluster'
 
     ''' Train SAC '''
     # file 
-    config.score_exp = 'CircleCluster_Score_newpattern_largebs_fixbug'
+    config.score_exp = 'CircleCluster_Score_oldpattern_fixbug'
     # reward
-    config.lambda_col = 3.0
+    config.lambda_col = 5.0
     config.lambda_sim = 1.0
 
     ''' Eval Policy '''

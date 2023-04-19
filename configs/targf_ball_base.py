@@ -14,15 +14,15 @@ def get_default_config():
     config.num_classes = 3
     config.num_objs = config.num_per_class * config.num_classes
     # train
-    config.n_epoches = 100000
+    config.n_epoches = 10000
     config.n_samples = 10000
     config.batch_size_gf = 2048
     config.lr = 2e-4
-    config.t0 = 1.0
+    config.ode_t0 = 1.0
     config.beta1 = 0.5
     config.workers = 8
-    config.hidden_dim = 128
-    config.embed_dim = 64
+    config.hidden_dim = 64
+    config.embed_dim = 32
     config.sigma = 25.
     config.full_train = False
     # eval

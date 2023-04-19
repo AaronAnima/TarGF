@@ -34,7 +34,7 @@ class RewardSampler:
         self.reward_freq = configs.reward_freq
         self.lambda_sim = configs.lambda_sim
         self.lambda_col = configs.lambda_col
-        self.t0 = configs.t0
+        self.t0 = configs.reward_t0
         self.configs = configs
 
     def get_reward(self, info, cur_state, new_state, is_eval=False):

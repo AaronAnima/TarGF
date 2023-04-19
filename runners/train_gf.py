@@ -148,7 +148,7 @@ def gf_trainer(configs, log_dir, writer):
                     marginal_prob_std_fn,
                     diffusion_coeff_fn,
                     ref_batch,
-                    t0=configs.t0,
+                    t0=configs.ode_t0,
                     batch_size=configs.vis_col**2,
                 )
                 

@@ -13,7 +13,7 @@ def get_config():
     config.n_epoches = 10000
     config.batch_size_gf = 64
     config.lr = 2e-4
-    config.t0 = 1e-1
+    config.ode_t0 = 1e-1
     config.beta1 = 0.9
     config.workers = 8
     config.hidden_dim = 128
