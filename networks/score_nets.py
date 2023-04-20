@@ -174,5 +174,3 @@ class ScoreModelGNN(nn.Module):
         # normalize the output
         x = x / (self.marginal_prob_std(t.repeat(1, num_objs).view(bs*num_objs, -1))+1e-7)
         return x
-
-

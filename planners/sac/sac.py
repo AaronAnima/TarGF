@@ -25,9 +25,6 @@ class MASAC(object):
     ):
         Critic = CRITIC_DICT[configs.env_type]
         self.actor = actor
-        # for param in self.actor.parameters():
-        #     print(param)
-        # set_trace()
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=3e-4, betas=(0.9, 0.999))
         self.critic = Critic(
             configs,

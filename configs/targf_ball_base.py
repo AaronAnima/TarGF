@@ -12,7 +12,7 @@ def get_default_config():
     config.pattern = 'CircleCluster'
     config.num_per_class = 7
     config.num_classes = 3
-    config.num_objs = config.num_per_class * config.num_classes
+    config.repeat_loss = 1
     # train
     config.n_epoches = 10000
     config.n_samples = 10000
@@ -40,6 +40,10 @@ def get_default_config():
     # model
     config.knn_actor = 20
     config.knn_critic = 20
+    config.hidden_dim_actor = 128
+    config.embed_dim_actor = 64
+    config.hidden_dim_critic = 128
+    config.embed_dim_critic = 64
     config.is_residual = True
     config.residual_t0 = 0.01
     # train 

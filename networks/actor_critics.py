@@ -34,8 +34,8 @@ class GaussianFourierProjection(nn.Module):
 class RoomActor(nn.Module):
     def __init__(self, configs, targf, max_action=None, class_num=10, log_std_bounds=(-5, 2)):
         super(RoomActor, self).__init__()
-        hidden_dim = configs.hidden_dim
-        embed_dim = configs.embed_dim
+        hidden_dim = configs.hidden_dim_actor
+        embed_dim = configs.embed_dim_actor
         self.targf = targf
         self.log_std_bounds = log_std_bounds
         self.t0 = configs.residual_t0
@@ -134,8 +134,8 @@ class RoomActor(nn.Module):
 class RoomCritic(nn.Module):
     def __init__(self, configs, targf, class_num=10):
         super(RoomCritic, self).__init__()
-        hidden_dim = configs.hidden_dim
-        embed_dim = configs.embed_dim
+        hidden_dim = configs.hidden_dim_critic
+        embed_dim = configs.embed_dim_critic
         self.targf = targf
         self.t0 = configs.residual_t0
         init_dim = 4+3+3 # [state, action, tar_scores]
@@ -303,8 +303,8 @@ class RoomCritic(nn.Module):
 class BallActor(nn.Module):
     def __init__(self, configs, targf, max_action=None, log_std_bounds=(-5, 2)):
         super(BallActor, self).__init__()
-        hidden_dim = configs.hidden_dim
-        embed_dim = configs.embed_dim
+        hidden_dim = configs.hidden_dim_actor
+        embed_dim = configs.embed_dim_actor
         self.knn = configs.knn_actor
         self.num_objs = configs.num_objs
         self.max_action = max_action
@@ -376,8 +376,8 @@ class BallActor(nn.Module):
 class BallCritic(nn.Module):
     def __init__(self, configs, targf):
         super(BallCritic, self).__init__()
-        hidden_dim = configs.hidden_dim
-        embed_dim = configs.embed_dim
+        hidden_dim = configs.hidden_dim_critic
+        embed_dim = configs.embed_dim_critic
         num_classes = configs.num_classes
         
         self.num_objs = configs.num_objs

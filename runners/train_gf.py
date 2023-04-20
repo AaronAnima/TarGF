@@ -130,7 +130,10 @@ def gf_trainer(configs, log_dir, writer):
         # For each batch in the dataloader
         for i, real_data in enumerate(dataloader_train):
             # calc score-matching loss
-            loss = loss_fn(score, real_data, marginal_prob_std_fn)
+            loss = 0
+            for _ in range(configs.repeat_loss):
+                loss += loss_fn(score, real_data, marginal_prob_std_fn)
+            loss /= configs.repeat_loss
 
             optimizer.zero_grad()
             loss.backward()
