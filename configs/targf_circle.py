@@ -11,17 +11,17 @@ def get_config():
 
     ''' Train SAC '''
     # file 
-    config.score_exp = 'Circle_Score'
+    config.score_exp = 'Circle_Score_fixbug_1e4'
     # reward
     config.lambda_col = 3.0
     config.lambda_sim = 1.0
 
     ''' Eval Policy '''
-    config.policy_type = 'targf_sac' # ['targf_orca', 'targf_sac']
+    config.policy_type = 'targf_orca' # ['targf_orca', 'targf_sac']
     config.policy_exp = 'Circle_SAC'
     config.calc_metrics = True
     config.save_videos = True
-    config.test_seeds = [5, 10, 15, 20, 25]
-    config.test_num = 100
+    config.test_seeds = [5, 10]
+    config.test_num = 5
 
     return config

@@ -75,15 +75,15 @@ def get_score_network(configs, marginal_prob_std_fn):
     if configs.env_type == 'Room':     
         score_net = CondScoreModelGNN(
             marginal_prob_std_fn,
-            hidden_dim=configs.hidden_dim,
-            embed_dim=configs.embed_dim,
+            hidden_dim=configs.hidden_dim_gf,
+            embed_dim=configs.embed_dim_gf,
         )
     elif configs.env_type == 'Ball':
         score_net = ScoreModelGNN(
             marginal_prob_std_fn, 
             num_classes=configs.num_classes, 
-            hidden_dim=configs.hidden_dim,
-            embed_dim=configs.embed_dim,
+            hidden_dim=configs.hidden_dim_gf,
+            embed_dim=configs.embed_dim_gf,
             device=device,
         )
     else:

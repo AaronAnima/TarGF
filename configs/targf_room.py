@@ -12,12 +12,13 @@ def get_config():
     # train
     config.n_epoches = 10000
     config.batch_size_gf = 64
+    config.repeat_loss = 1
     config.lr = 2e-4
     config.ode_t0 = 1e-1
     config.beta1 = 0.9
     config.workers = 8
-    config.hidden_dim = 128
-    config.embed_dim = 64
+    config.hidden_dim_gf = 128
+    config.embed_dim_gf = 64
     config.sigma = 25.
     config.full_train = False
     config.base_noise_scale = 0.01
@@ -43,6 +44,10 @@ def get_config():
     config.residual_t0 = 0.01
     config.buffer_size = 1e6
     config.is_residual = True 
+    config.hidden_dim_actor = 128
+    config.embed_dim_actor = 64
+    config.hidden_dim_critic = 128
+    config.embed_dim_critic = 64
     # reward
     config.reward_mode = 'densityIncre'
     config.reward_freq = 1

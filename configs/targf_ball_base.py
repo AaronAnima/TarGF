@@ -12,22 +12,23 @@ def get_default_config():
     config.pattern = 'CircleCluster'
     config.num_per_class = 7
     config.num_classes = 3
-    config.repeat_loss = 1
+    config.num_objs = config.num_per_class * config.num_classes
     # train
     config.n_epoches = 10000
     config.n_samples = 10000
     config.batch_size_gf = 2048
+    config.repeat_loss = 1
     config.lr = 2e-4
     config.ode_t0 = 1.0
     config.beta1 = 0.5
     config.workers = 8
-    config.hidden_dim = 64
-    config.embed_dim = 32
+    config.hidden_dim_gf = 128
+    config.embed_dim_gf = 64
     config.sigma = 25.
     config.full_train = False
     # eval
-    config.vis_freq_gf = 20
-    config.video_freq_gf = 100
+    config.vis_freq_gf = 100
+    config.video_freq_gf = 1000
     config.test_ratio = 0.1 # for splitting the training set
     config.vis_col = 4
     config.sampling_steps = 2000
