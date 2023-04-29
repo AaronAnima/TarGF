@@ -6,12 +6,17 @@ def get_config():
     ''' Train GF '''
     # file
     config.data_name = 'Cluster_Examples'
+
     # env
     config.pattern = 'Cluster'
+    
+    # train
+    config.n_epoches = 10000
 
     ''' Train SAC '''
     # file 
-    config.score_exp = 'Cluster_Score_fixbug'
+    config.score_exp = 'Cluster_Score'
+
     # reward
     config.lambda_col = 5.0
     config.lambda_sim = 1.0
@@ -21,8 +26,8 @@ def get_config():
     config.policy_exp = 'Cluster_SAC'
     config.calc_metrics = True
     config.save_videos = True
-    config.test_seeds = [5, 10]
-    config.test_num = 5
+    config.test_seeds = [5, 10, 15, 20, 25]
+    config.test_num = 100
 
 
     return config

@@ -22,8 +22,8 @@ def get_default_config():
     config.ode_t0 = 1.0
     config.beta1 = 0.5
     config.workers = 8
-    config.hidden_dim_gf = 128
-    config.embed_dim_gf = 64
+    config.hidden_dim_gf = 64
+    config.embed_dim_gf = 32
     config.sigma = 25.
     config.full_train = False
     # eval

@@ -6,12 +6,17 @@ def get_config():
     ''' Train GF '''
     # file
     config.data_name = 'Circle_Examples'
+
     # env
     config.pattern = 'Circle'
+
+    # train
+    config.n_epoches = 10000
 
     ''' Train SAC '''
     # file 
     config.score_exp = 'Circle_Score_fixbug_1e4'
+    
     # reward
     config.lambda_col = 3.0
     config.lambda_sim = 1.0
@@ -21,7 +26,7 @@ def get_config():
     config.policy_exp = 'Circle_SAC'
     config.calc_metrics = True
     config.save_videos = True
-    config.test_seeds = [5, 10]
-    config.test_num = 5
+    config.test_seeds = [5, 10, 15, 20, 25]
+    config.test_num = 100
 
     return config

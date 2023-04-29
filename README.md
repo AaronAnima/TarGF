@@ -88,7 +88,7 @@ If you do not need to run this experiment, you can skip this procedure.
 We assign an argument `--log_dir $log_dir` for each experiment. The in-process results will be saved in `../logs/${log_dir}`.
 
 ### Training the Target Score Network
-**Note:** *To reproduce the results in the paper, please change `--n_samples 10000` to `--n_samples 100000` for all the ball rearrangement experiments.*
+**Note:** *To reproduce the results in the paper, please change `config.n_samples = 10000` to `config.n_samples = 100000` in `./configs/targf_ball_base.py`*
 
 Set `--mode train_gf` and set config files for specifying different tasks. The in-process results and the model checkpoint will be saved in `./logs/${workdir}`.
 For example, for *Room Rearrangement*:
@@ -100,13 +100,13 @@ You can also *visualise* the in-process results via `TensorBoard`:
 ```
 tensorboard --logdir ../logs/${workdir}/tb --port 10020
 ```
-where `${workdir}` denotes the argument following `--workdir`.
 
 ### Learning to control with RL and TarGF (Optional)
 The TarGF provides reference actions and rewards in reinforcement learning (RL). Here we choose SAC as the RL algorithm.
 This is an optional procedure. If you do not need to run this experiment, you can skip this procedure. 
 You can use the ORCA planner to control the balls in the *Ball Rearrangement* environment.
 Note that ORCA only supports *Ball Rearrangement* environment. For *Room Rearrangement*, please use the *TarGF (SAC)*.
+Before the RL's training, please specify `config.score_exp` in the config file. The trainer will load the score network's checkpoint saved in `./logs/${config.score_exp}` for reward estimation and computing the gradient-based action.
 **Note:** *To reproduce the results in the paper, please change `config.residual_t0 = 0.01` to `config.residual_t0 = 0.1` in the config file for all the ball rearrangement experiments.*
 
 An example command for *Circling*:
@@ -116,15 +116,14 @@ python main.py --config configs/targf_Circle.py --workdir Circle_SAC --mode trai
 
 
 ## Evaluation
-We also assign an argument `--log_dir $log_dir` for each experiment. 
 
-By specifying `--mode test_policy`, we can use `main.py` for evaluation. Similarly, the policy type (*e.g.*, TarGF(SAC) and TarGF(ORCA)) and the environment can be specified by the config file. For instance, we can set `config.policy_type = 'targf_orca'` to evaluate TarGF(ORCA). An example command for *Room Rearrangement*:
+By specifying `--mode test_policy`, we can use `main.py` for evaluation. Similarly, the policy type (*e.g.*, TarGF(SAC) and TarGF(ORCA)) and the environment can be specified by the config file. For instance, we can set `config.policy_type = 'targf_orca'` in `./configs/targf_circlecluster.py`to evaluate TarGF(ORCA) on *CircleCluster* environment. To evaluate TarGF(SAC), we need to further specify `config.policy_exp = ${rl_workdir}` in the config file. An example command to evaluate the TarGF(ORCA):
 ```
-python main.py --config configs/targf_Room.py --workdir Room_SAC_eval --mode test_policy
+python main.py --config configs/targf_circlecluster.py --workdir CircleCluster_SAC_eval --mode test_policy
 ```
 The metrics dict, trajectories and visualisations will be saved in `../logs/${workdir}`.
 
-**Note:** *To reproduce the results in the paper, please change `config.residual_t0 = 0.01` to `config.residual_t0 = 0.1` and `config.is_decay_t0_orca = False` to `config.is_decay_t0_orca = True` for all the ball rearrangement experiments.*
+**Note:** *To reproduce the results in the paper, please change `config.residual_t0 = 0.01` to `config.residual_t0 = 0.1` and `config.is_decay_t0_orca = False` to `config.is_decay_t0_orca = True` in `./configs/targf_ball_base.py`*
 
 
 
@@ -139,7 +138,6 @@ editor={Alice H. Oh and Alekh Agarwal and Danielle Belgrave and Kyunghyun Cho},
 year={2022},
 url={https://openreview.net/forum?id=Euv1nXN98P3}
 }
-
 ```
 
 ## Contact
