@@ -11,7 +11,7 @@ def get_config():
     config.pattern = 'CircleCluster'
 
     # train
-    config.n_epoches = 50000
+    config.n_epoches = 10000
 
     ''' Train SAC '''
     # file 

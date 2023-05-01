@@ -15,7 +15,7 @@ def get_config():
 
     ''' Train SAC '''
     # file 
-    config.score_exp = 'Circle_Score_fixbug_1e4'
+    config.score_exp = 'Circle_Score'
     
     # reward
     config.lambda_col = 3.0
