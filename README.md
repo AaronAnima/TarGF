@@ -13,7 +13,7 @@ The environments used in this work are demonstrated as follows:
 |  ----  | ----  | ----  | ----  |
 |<img src="demos/circling_demo.gif" align="middle" width="160"/>  | <img src="demos/clustering_demo.gif" align="middle" width="160"/>  | <img src="demos/circlecluster_demo.gif" align="middle" width="160"/>    | <img src="demos/room_demo.gif" align="middle" width="160"/> |
 
-This repo is an on-going rebuild of the official implementation in the [main branch](https://github.com/AaronAnima/TarGF/tree/main). Contents of this repo are as follows:
+This repo is the official implementation of [TarGF](https://arxiv.org/abs/2209.00853). The codes is rebuilt from the [old branch](https://github.com/AaronAnima/TarGF/tree/original_version) and is released on `2023/05/03`. Contents of this repo are as follows:
 
 - [Installation](#installation)
   - [Requirements](#requirements)
