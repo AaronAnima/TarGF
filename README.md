@@ -65,7 +65,7 @@ pip install opencv-python tensorboard pytorch_fid ipdb imageio
 ```
 pip install gym pybullet
 
-cd Envs
+cd envs
 
 git clone https://github.com/AaronAnima/EbOR # install Example-based Object Rearrangement (EbOR) environments
 
