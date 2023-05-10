@@ -7,7 +7,7 @@ First download the `3DFRONT` dataset preprocessed by us:
 **[2022/8/31 update] Due to the license issue, we temporarily canceled the sharing link below. If you need this dataset urgently, please email the authors.**
 
 ```
-cd Targf/Envs/Room
+cd Targf/envs/Room
 
 wget https://www.dropbox.com/s/7j8f3dvn976hmaf/data.zip
 
