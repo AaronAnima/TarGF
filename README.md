@@ -65,7 +65,7 @@ pip install opencv-python tensorboard pytorch_fid ipdb imageio
 ```
 pip install gym pybullet
 
-cd Envs
+cd envs
 
 git clone https://github.com/AaronAnima/EbOR # install Example-based Object Rearrangement (EbOR) environments
 
@@ -79,7 +79,7 @@ cd ../../
 
 ### Install *Room Rearrangement* Environment
 
-Please follow the README in [this page](https://github.com/AaronAnima/TarGF/tree/main/Envs/Room).
+Please follow the README in [this page](https://github.com/AaronAnima/TarGF/tree/main/envs/Room).
 
 If you do not need to run this experiment, you can skip this procedure. 
 
